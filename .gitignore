@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# Flask
+instance/
+.flaskenv
+
+# AWS Lambda
+*.zip
+*.egg
+build/
+
+# AWS CDK
+cdk.out/
+.cdk/
+node_modules/ # If using TypeScript/JavaScript for CDK
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDEs and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
