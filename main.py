@@ -25,12 +25,24 @@ logger.setLevel(logging.INFO)
 
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
+API_KEY = os.getenv("API_KEY")
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 
 def lambda_handler(event, context):
     logger.info("Received event: %s", json.dumps(event))
+
+    # API Key authentication
+    headers = event.get('headers', {})
+    api_key = headers.get('x-api-key') or headers.get('X-API-Key')
+    
+    if not api_key or api_key != API_KEY:
+        logger.error("Invalid or missing API key")
+        return {
+            'statusCode': 403,
+            'body': json.dumps({'message': 'Forbidden'})
+        }
 
     if 'body' not in event:
         logger.error("No body in event")
