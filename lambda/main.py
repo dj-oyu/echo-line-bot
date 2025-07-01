@@ -17,7 +17,8 @@ from linebot.v3.messaging import (
 )
 from linebot.v3.webhooks import (
     MessageEvent,
-    TextMessageContent
+    TextMessageContent,
+    
 )
 
 logger = logging.getLogger()
@@ -25,7 +26,6 @@ logger.setLevel(logging.INFO)
 
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
-API_KEY = os.getenv("API_KEY")
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
@@ -35,14 +35,6 @@ def lambda_handler(event, context):
 
     # API Key authentication
     headers = event.get('headers', {})
-    api_key = headers.get('x-api-key') or headers.get('X-API-Key')
-    
-    if not api_key or api_key != API_KEY:
-        logger.error("Invalid or missing API key")
-        return {
-            'statusCode': 403,
-            'body': json.dumps({'message': 'Forbidden'})
-        }
 
     if 'body' not in event:
         logger.error("No body in event")
@@ -52,7 +44,7 @@ def lambda_handler(event, context):
         }
 
     body = event['body']
-    signature = event.get('headers', {}).get('x-line-signature', '')
+    signature = headers.get('x-line-signature')
 
     try:
         handler.handle(body, signature)
@@ -70,11 +62,12 @@ def lambda_handler(event, context):
 
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
+    logger.info("Dumping event: %s", json.dumps(event, default=str))
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message_with_http_info(
-            ReplyMessageRequest(
-                reply_token=event.reply_token,
+            reply_message_request=ReplyMessageRequest(
+                replyToken=event.reply_token,
                 messages=[TextMessage(text=event.message.text)]
+            )
         )
-    )
