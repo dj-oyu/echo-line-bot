@@ -232,4 +232,4 @@ def is_conversation_reset_needed(messages):
         "新しい話題", "話題を変えて", "リセット", "最初から", "忘れて",
         "new topic", "change subject", "reset", "start over", "forget"
     ]
-        return any(keyword in last_message['content'].lower() for keyword in reset_keywords)
+    return any(keyword in last_message['content'].lower() for keyword in reset_keywords)
