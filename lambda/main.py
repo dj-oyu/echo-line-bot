@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import openai
 from linebot.v3 import (
     WebhookHandler
@@ -30,6 +31,14 @@ def get_bot_user_id():
             line_bot_api = MessagingApi(api_client)
             BOT_USER_ID = line_bot_api.get_bot_info().user_id
     return BOT_USER_ID
+
+
+def strip_mentions(text: str) -> str:
+    """Remove '@username' style mentions from text"""
+    if not text:
+        return text
+    cleaned = re.sub(r"@\S+", "", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -107,6 +116,7 @@ def handle_message(event):
 
     source_type = event.source.type
     user_message = event.message.text
+    sanitized_message = strip_mentions(user_message)
 
     # Check mentions when in group or room
     if source_type in ("group", "room"):
@@ -120,9 +130,10 @@ def handle_message(event):
             return
 
     # Get AI response from SambaNova
-    ai_response = get_ai_response(user_message)
+    ai_response = get_ai_response(sanitized_message)
     
     logger.info(f"User message: {user_message}")
+    logger.info(f"Sanitized message: {sanitized_message}")
     logger.info(f"AI response: {ai_response}")
     
     with ApiClient(configuration) as api_client:
