@@ -121,7 +121,7 @@ jobs:
       if: success()
       run: |
         echo "🚀 Deployment successful!"
-        echo "API Gateway URL: $(aws cloudformation describe-stacks --stack-name LineEchoStack --query 'Stacks[0].Outputs[?OutputKey==\`ApiGatewayUrl\`].OutputValue' --output text)"
+        echo "API Gateway URL: $(aws cloudformation describe-stacks --stack-name LineEchoStack --query 'Stacks[0].Outputs[?OutputKey==`ApiGatewayUrl`].OutputValue' --output text)"
         
     - name: Notify deployment failure
       if: failure()
