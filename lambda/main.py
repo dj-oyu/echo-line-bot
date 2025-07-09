@@ -32,6 +32,7 @@ def get_bot_user_id():
             BOT_USER_ID = line_bot_api.get_bot_info().user_id
     return BOT_USER_ID
 
+
 def strip_mentions(text: str) -> str:
     """Remove '@username' style mentions from text"""
     if not text:
