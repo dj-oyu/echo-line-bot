@@ -79,4 +79,5 @@ def send_line_message(to_id, message):
         logger.info(f"Sent message to {to_id}: {message}")
     
     except Exception as e:
-        logger.error(f"Error sending LINE message: {e}")        raise e
+        logger.error(f"Error sending LINE message: {e}")
+        raise e
