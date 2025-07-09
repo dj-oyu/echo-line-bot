@@ -1,17 +1,87 @@
-// import * as cdk from 'aws-cdk-lib';
-// import { Template } from 'aws-cdk-lib/assertions';
-// import * as Cdk from '../lib/cdk-stack';
+import * as cdk from 'aws-cdk-lib';
+import { Template } from 'aws-cdk-lib/assertions';
+import { LineEchoStack } from '../lib/lambda-stack';
 
-// example test. To run these tests, uncomment this file along with the
-// example resource in lib/cdk-stack.ts
-test('SQS Queue Created', () => {
-//   const app = new cdk.App();
-//     // WHEN
-//   const stack = new Cdk.CdkStack(app, 'MyTestStack');
-//     // THEN
-//   const template = Template.fromStack(stack);
+// Mock environment variables for testing
+process.env.CHANNEL_ACCESS_TOKEN = 'test-channel-token';
+process.env.CHANNEL_SECRET = 'test-channel-secret';
+process.env.SAMBA_NOVA_API_KEY = 'test-samba-nova-key';
 
-//   template.hasResourceProperties('AWS::SQS::Queue', {
-//     VisibilityTimeout: 300
-//   });
+describe('LineEchoStack', () => {
+  let app: cdk.App;
+  let stack: LineEchoStack;
+  let template: Template;
+
+  beforeEach(() => {
+    app = new cdk.App();
+    stack = new LineEchoStack(app, 'TestStack');
+    template = Template.fromStack(stack);
+  });
+
+  test('DynamoDB table created', () => {
+    template.hasResourceProperties('AWS::DynamoDB::Table', {
+      TableName: 'line-bot-conversations',
+      BillingMode: 'PAY_PER_REQUEST',
+      TimeToLiveSpecification: {
+        AttributeName: 'ttl',
+        Enabled: true
+      }
+    });
+  });
+
+  test('Lambda functions created', () => {
+    // Check webhook handler
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'webhook_handler.lambda_handler',
+      Runtime: 'python3.11',
+      Timeout: 10
+    });
+
+    // Check AI processor
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'ai_processor.lambda_handler',
+      Runtime: 'python3.11',
+      Timeout: 60
+    });
+
+    // Check response sender
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'response_sender.lambda_handler',
+      Runtime: 'python3.11',
+      Timeout: 10
+    });
+  });
+
+  test('Step Functions state machine created', () => {
+    // Check that exactly one Step Functions state machine exists
+    template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
+  });
+
+  test('API Gateway created', () => {
+    template.hasResourceProperties('AWS::ApiGateway::RestApi', {});
+  });
+
+  test('Lambda layer created', () => {
+    template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+      Description: 'Layer for line-bot-sdk and openai'
+    });
+  });
+
+  test('Correct number of resources created', () => {
+    // Check resource counts without hardcoding resource names
+    template.resourceCountIs('AWS::Lambda::Function', 3); // webhook, ai, response
+    template.resourceCountIs('AWS::DynamoDB::Table', 1);
+    template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
+    template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
+    template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
+  });
+
+  test('All Lambda functions have correct runtime', () => {
+    const lambdaFunctions = template.findResources('AWS::Lambda::Function');
+    
+    // Check that all Lambda functions use Python 3.11
+    Object.values(lambdaFunctions).forEach((func: any) => {
+      expect(func.Properties.Runtime).toBe('python3.11');
+    });
+  });
 });
