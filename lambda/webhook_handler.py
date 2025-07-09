@@ -187,4 +187,5 @@ def start_ai_processing(user_id, conversation_context, source_type, source_id):
         )
         
         logger.info(f"Started Step Functions execution: {response['executionArn']}")
-    except Exception as e:        logger.error(f"Error starting Step Functions: {e}")
+    except Exception as e:
+        logger.error(f"Error starting Step Functions: {e}")
