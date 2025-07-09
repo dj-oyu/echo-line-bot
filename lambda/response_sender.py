@@ -30,14 +30,19 @@ def lambda_handler(event, context):
     try:
         user_id = event['userId']
         ai_response = event['aiResponse']
+        source_type = event.get('sourceType')
+        source_id = event.get('sourceId')
         
-        # Send response to LINE user
-        send_line_message(user_id, ai_response)
+        # Send response to the appropriate destination
+        target_id = source_id if source_type in ("group", "room") else user_id
+        send_line_message(target_id, ai_response)
         
         return {
             'statusCode': 200,
             'message': 'Response sent successfully',
-            'userId': user_id
+            'userId': user_id,
+            'sourceType': source_type,
+            'sourceId': source_id,
         }
     
     except Exception as e:
@@ -53,24 +58,25 @@ def lambda_handler(event, context):
         
         return {
             'statusCode': 500,
-            'error': str(e)
+            'error': str(e),
+            'sourceType': event.get('sourceType'),
+            'sourceId': event.get('sourceId')
         }
 
-def send_line_message(user_id, message):
-    """Send message to LINE user using Push API"""
+def send_line_message(to_id, message):
+    """Send message to LINE destination using Push API"""
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
-            
+
             line_bot_api.push_message_with_http_info(
                 push_message_request=PushMessageRequest(
-                    to=user_id,
+                    to=to_id,
                     messages=[TextMessage(text=message)]
                 )
             )
-        
-        logger.info(f"Sent message to user {user_id}: {message}")
+
+        logger.info(f"Sent message to {to_id}: {message}")
     
     except Exception as e:
-        logger.error(f"Error sending LINE message: {e}")
-        raise e
+        logger.error(f"Error sending LINE message: {e}")        raise e
