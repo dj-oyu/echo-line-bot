@@ -16,7 +16,7 @@ export class LineEchoStack extends cdk.Stack {
     // Line bot layer
    const lineBotLayer = new lambda.LayerVersion(this, 'LineBotLayer', {
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_11],
-      description: 'Layer for line-bot-sdk',
+      description: 'Layer for line-bot-sdk and openai',
       code: lambda.Code.fromAsset(resolve(__dirname), {
         bundling: {
           image: lambda.Runtime.PYTHON_3_11.bundlingImage,
@@ -24,7 +24,7 @@ export class LineEchoStack extends cdk.Stack {
             'bash', '-c',
             [
               'mkdir -p /asset-output/python',
-              'pip install line-bot-sdk -t /asset-output/python',
+              'pip install line-bot-sdk openai -t /asset-output/python',
             ].join(' && ')
           ]
         }
@@ -36,9 +36,11 @@ export class LineEchoStack extends cdk.Stack {
       handler: 'main.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
       layers: [lineBotLayer],
+      timeout: cdk.Duration.seconds(30),  // Increase timeout to 30 seconds
       environment: {
         CHANNEL_SECRET: process.env.CHANNEL_SECRET || '',
         CHANNEL_ACCESS_TOKEN: process.env.CHANNEL_ACCESS_TOKEN || '',
+        SAMBA_NOVA_API_KEY: process.env.SAMBA_NOVA_API_KEY || '',
       },
     });
 

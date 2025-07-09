@@ -2,6 +2,7 @@ import json
 import requests
 import logging
 import os
+import openai
 from linebot.v3 import (
     WebhookHandler
 )
@@ -26,9 +27,40 @@ logger.setLevel(logging.INFO)
 
 CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
 CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
+SAMBANOVA_API_KEY = os.getenv("SAMBA_NOVA_API_KEY")
 
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
+
+# Initialize SambaNova client
+sambanova_client = openai.OpenAI(
+    api_key=SAMBANOVA_API_KEY,
+    base_url="https://api.sambanova.ai/v1",
+)
+
+def get_ai_response(user_message):
+    """Get response from SambaNova DeepSeek-V3-0324 model"""
+    try:
+        logger.info(f"Calling SambaNova API with message: {user_message}")
+        if not SAMBANOVA_API_KEY:
+            logger.error("SambaNova API key is not set")
+            return "申し訳ございません。AIサービスの設定に問題があります。"
+        
+        response = sambanova_client.chat.completions.create(
+            model="DeepSeek-V3-0324",
+            messages=[
+                {"role": "system", "content": "You are a helpful AI assistant. Respond in Japanese if the user writes in Japanese, otherwise respond in the same language as the user."},
+                {"role": "user", "content": user_message}
+            ],
+            temperature=0.7,
+            max_tokens=1000
+        )
+        logger.info(f"SambaNova API response received: {response.choices[0].message.content}")
+        return response.choices[0].message.content
+    except Exception as e:
+        logger.error(f"Error calling SambaNova API: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        return "申し訳ございません。現在、AIサービスに接続できません。後でもう一度お試しください。"
 
 def lambda_handler(event, context):
     logger.info("Received event: %s", json.dumps(event))
@@ -63,11 +95,19 @@ def lambda_handler(event, context):
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     logger.info("Dumping event: %s", json.dumps(event, default=str))
+    
+    # Get AI response from SambaNova
+    user_message = event.message.text
+    ai_response = get_ai_response(user_message)
+    
+    logger.info(f"User message: {user_message}")
+    logger.info(f"AI response: {ai_response}")
+    
     with ApiClient(configuration) as api_client:
         line_bot_api = MessagingApi(api_client)
         line_bot_api.reply_message_with_http_info(
             reply_message_request=ReplyMessageRequest(
                 replyToken=event.reply_token,
-                messages=[TextMessage(text=event.message.text)]
+                messages=[TextMessage(text=ai_response)]
             )
         )
