@@ -38,7 +38,7 @@ export class LineEchoStack extends cdk.Stack {
             'bash', '-c',
             [
               'mkdir -p /asset-output/python',
-              'pip install line-bot-sdk openai boto3 -t /asset-output/python',
+              'pip install line-bot-sdk openai boto3 pytz -t /asset-output/python',
             ].join(' && ')
           ]
         }
