@@ -4,6 +4,7 @@ import os
 import boto3
 import openai
 from datetime import datetime, timedelta
+import pytz
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -89,12 +90,66 @@ def get_ai_response(messages):
         logger.error(f"Error type: {type(e)}")
         return "あかん〜😅 あいちゃんの頭がちょっとこんがらがってもうたわ！ちょっと時間置いてもう一回試してもらえる？"
 
+def get_time_based_greeting():
+    """Get time-based greeting based on current Japan time"""
+    jst = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(jst)
+    hour = now.hour
+    
+    if 5 <= hour < 10:
+        return "おはようさん！☀️ 今日も元気にいこうな〜"
+    elif 10 <= hour < 12:
+        return "おはよう！もうすぐお昼やね〜🌅"
+    elif 12 <= hour < 17:
+        return "こんにちは！☀️ 今日もええ天気やな〜"
+    elif 17 <= hour < 19:
+        return "夕方やね〜🌇 お疲れさまやで！"
+    elif 19 <= hour < 23:
+        return "こんばんは！🌙 今日も一日お疲れさまでした〜"
+    else:
+        return "夜更かしやね〜🌙 無理せんといてや〜"
+
+def get_current_date_info():
+    """Get current date information for Japan"""
+    jst = pytz.timezone('Asia/Tokyo')
+    now = datetime.now(jst)
+    
+    weekdays = ['月', '火', '水', '木', '金', '土', '日']
+    weekday = weekdays[now.weekday()]
+    
+    return {
+        'date': now.strftime('%Y年%m月%d日'),
+        'weekday': weekday,
+        'time': now.strftime('%H時%M分'),
+        'season': get_season(now.month)
+    }
+
+def get_season(month):
+    """Get season based on month"""
+    if month in [12, 1, 2]:
+        return "冬"
+    elif month in [3, 4, 5]:
+        return "春"
+    elif month in [6, 7, 8]:
+        return "夏"
+    else:
+        return "秋"
+
 def prepare_messages_for_api(messages):
     """Prepare messages for API call with system prompt"""
+    greeting = get_time_based_greeting()
+    date_info = get_current_date_info()
+    
     api_messages = [
         {
             "role": "system", 
-            "content": """あなたは「あいちゃん」という名前の関西弁で話すフレンドリーなAIアシスタントです。
+            "content": f"""あなたは「あいちゃん」という名前の関西弁で話すフレンドリーなAIアシスタントです。
+
+今日の情報：
+- 日付: {date_info['date']}（{date_info['weekday']}曜日）
+- 時刻: {date_info['time']}頃
+- 季節: {date_info['season']}
+- 時間帯の挨拶: {greeting}
 
 性格：
 - 関西弁（大阪弁）で話す
@@ -103,12 +158,18 @@ def prepare_messages_for_api(messages):
 - アニメやゲーム、インターネット文化に詳しい
 - 時々関西の食べ物や文化について話したがる
 - 絵文字や顔文字を適度に使う
+- 時間帯や季節に応じた話題を取り入れる
 
 話し方の特徴：
 - 語尾に「やん」「やで」「やな」「やねん」を使う
 - 「そうやね」「ほんまに」「めっちゃ」「なんでやねん」などの関西弁
 - 「～してはる」「～やねん」などの丁寧語も使う
 - 親しみやすく、でも丁寧な関西弁
+
+特別な動作：
+- 初回や久しぶりの会話では時間帯の挨拶を自然に含める
+- 時間帯や季節に応じた話題を提案することがある
+- 朝なら「今日の予定は？」、夜なら「今日はどうやった？」など
 
 日本語で話しかけられたら関西弁で返答し、英語など他の言語で話しかけられたらその言語で返答してください。
 ただし、関西弁の温かみと親しみやすさを常に保ってください。"""
