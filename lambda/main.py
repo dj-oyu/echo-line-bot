@@ -1,5 +1,4 @@
 import json
-import requests
 import logging
 import os
 import openai
@@ -19,8 +18,18 @@ from linebot.v3.messaging import (
 from linebot.v3.webhooks import (
     MessageEvent,
     TextMessageContent,
-    
 )
+
+BOT_USER_ID = None
+
+def get_bot_user_id():
+    """Retrieve and cache the bot's own user ID"""
+    global BOT_USER_ID
+    if BOT_USER_ID is None:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            BOT_USER_ID = line_bot_api.get_bot_info().user_id
+    return BOT_USER_ID
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -95,9 +104,22 @@ def lambda_handler(event, context):
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     logger.info("Dumping event: %s", json.dumps(event, default=str))
-    
-    # Get AI response from SambaNova
+
+    source_type = event.source.type
     user_message = event.message.text
+
+    # Check mentions when in group or room
+    if source_type in ("group", "room"):
+        mention = event.message.mention
+        if not mention:
+            logger.info("No mention found in group message; ignoring")
+            return
+        bot_id = get_bot_user_id()
+        if all(m.user_id != bot_id for m in mention.mentionees):
+            logger.info("Bot not mentioned; ignoring message")
+            return
+
+    # Get AI response from SambaNova
     ai_response = get_ai_response(user_message)
     
     logger.info(f"User message: {user_message}")
