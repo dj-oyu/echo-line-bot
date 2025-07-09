@@ -128,3 +128,17 @@ feat(lambda): add support for sticker messages
 fix(cdk): resolve Lambda timeout configuration
 docs: update CLAUDE.md with git workflow
 ```
+
+## VoiceVox Notification Guidelines
+
+When VoiceVox MCP is available, use voice notifications to inform the user in the following situations:
+
+1. **Task Completion**: When a long-running task is completed
+2. **User Input Required**: When additional instructions or decisions are needed from the user
+3. **Important Milestones**: When significant progress has been made on complex tasks
+
+### Usage Rules
+- Only use VoiceVox when tasks are expected to be long-running or complex
+- Keep voice messages concise and informative
+- Use appropriate Japanese for voice notifications
+- Default speaker ID and speed settings are acceptable unless user specifies otherwise
