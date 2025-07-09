@@ -68,15 +68,7 @@ def handle_message(event):
     user_message = event.message.text
     reply_token = event.reply_token
     
-    # Send immediate acknowledgment
-    with ApiClient(configuration) as api_client:
-        line_bot_api = MessagingApi(api_client)
-        line_bot_api.reply_message_with_http_info(
-            reply_message_request=ReplyMessageRequest(
-                replyToken=reply_token,
-                messages=[TextMessage(text="考え中です...💭")]
-            )
-        )
+    # No immediate response - will respond via Push API after processing
     
     # Get or create conversation context
     conversation_context = get_conversation_context(user_id)
