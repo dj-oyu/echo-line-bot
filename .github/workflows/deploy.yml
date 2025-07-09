@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
     
     steps:
     - name: Checkout code
@@ -60,7 +61,6 @@ jobs:
         SAMBA_NOVA_API_KEY: ${{ secrets.SAMBA_NOVA_API_KEY }}
 
   deploy:
-    needs: test
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
