@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import boto3
 from datetime import datetime, timedelta
 from linebot.v3 import WebhookHandler
@@ -31,6 +32,25 @@ conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
 # LINE Bot setup
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
+
+BOT_USER_ID = None
+
+def get_bot_user_id():
+    """Retrieve and cache the bot's own user ID"""
+    global BOT_USER_ID
+    if BOT_USER_ID is None:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            BOT_USER_ID = line_bot_api.get_bot_info().user_id
+    return BOT_USER_ID
+
+def strip_mentions(text):
+    """Remove '@username' style mentions from text"""
+    if not text:
+        return text
+    cleaned = re.sub(r"@\S+", "", text)
+    # collapse multiple spaces left after removal
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 def lambda_handler(event, context):
     logger.info("Received event: %s", json.dumps(event))
@@ -66,17 +86,32 @@ def handle_message(event):
     
     user_id = event.source.user_id
     user_message = event.message.text
+    sanitized_message = strip_mentions(user_message)
+    source_type = event.source.type
+    source_id = getattr(event.source, f"{source_type}_id", None)
     reply_token = event.reply_token
+
+    # Check mentions when in group or room
+    if source_type in ("group", "room"):
+        mention = event.message.mention
+        if not mention:
+            logger.info("No mention found in group message; ignoring")
+            return
+        bot_id = get_bot_user_id()
+        if all(m.user_id != bot_id for m in mention.mentionees):
+            logger.info("Bot not mentioned; ignoring message")
+            return
     
     # No immediate response - will respond via Push API after processing
     
     # Get or create conversation context
     conversation_context = get_conversation_context(user_id)
-    
+
     # Add user message to conversation
+    logger.info(f"Sanitized message: {sanitized_message}")
     conversation_context['messages'].append({
         'role': 'user',
-        'content': user_message,
+        'content': sanitized_message,
         'timestamp': datetime.utcnow().isoformat()
     })
     
@@ -84,7 +119,7 @@ def handle_message(event):
     save_conversation_context(user_id, conversation_context)
     
     # Start Step Functions workflow
-    start_ai_processing(user_id, conversation_context)
+    start_ai_processing(user_id, conversation_context, source_type, source_id)
 
 def get_conversation_context(user_id):
     """Get existing conversation context or create new one"""
@@ -136,12 +171,14 @@ def save_conversation_context(user_id, conversation_context):
     except Exception as e:
         logger.error(f"Error saving conversation context: {e}")
 
-def start_ai_processing(user_id, conversation_context):
+def start_ai_processing(user_id, conversation_context, source_type, source_id):
     """Start Step Functions workflow for AI processing"""
     try:
         input_data = {
             'userId': user_id,
-            'conversationContext': conversation_context
+            'conversationContext': conversation_context,
+            'sourceType': source_type,
+            'sourceId': source_id,
         }
         
         response = stepfunctions.start_execution(
@@ -150,5 +187,4 @@ def start_ai_processing(user_id, conversation_context):
         )
         
         logger.info(f"Started Step Functions execution: {response['executionArn']}")
-    except Exception as e:
-        logger.error(f"Error starting Step Functions: {e}")
+    except Exception as e:        logger.error(f"Error starting Step Functions: {e}")
