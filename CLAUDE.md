@@ -142,3 +142,12 @@ When VoiceVox MCP is available, use voice notifications to inform the user in th
 - Keep voice messages concise and informative
 - Use appropriate Japanese for voice notifications
 - Default speaker ID and speed settings are acceptable unless user specifies otherwise
+
+## GitHub Actions Testing
+
+This section documents testing of the CI/CD pipeline to verify GitHub Secrets configuration and deployment functionality.
+
+### Test Execution
+- Testing AWS credentials configuration
+- Verifying automated deployment process
+- Ensuring proper secret management

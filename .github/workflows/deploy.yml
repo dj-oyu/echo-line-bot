@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: env
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     
     steps:
@@ -62,6 +63,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    environment: env
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     
     steps:
