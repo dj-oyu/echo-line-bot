@@ -58,7 +58,7 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'error': str(e),
             'userId': event.get('userId', 'unknown'),
-            'aiResponse': "申し訳ございません。処理中にエラーが発生しました。"
+            'aiResponse': "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
         }
 
 def get_ai_response(messages):
@@ -68,7 +68,7 @@ def get_ai_response(messages):
         
         if not SAMBA_NOVA_API_KEY:
             logger.error("SambaNova API key is not set")
-            return "申し訳ございません。AIサービスの設定に問題があります。"
+            return "ごめんやで〜💦 あいちゃんの設定がうまくいってへんみたいやねん。管理者さんに連絡してもらえる？"
         
         # Prepare messages for API call
         api_messages = prepare_messages_for_api(messages)
@@ -87,14 +87,31 @@ def get_ai_response(messages):
     except Exception as e:
         logger.error(f"Error calling SambaNova API: {str(e)}")
         logger.error(f"Error type: {type(e)}")
-        return "申し訳ございません。現在、AIサービスに接続できません。後でもう一度お試しください。"
+        return "あかん〜😅 あいちゃんの頭がちょっとこんがらがってもうたわ！ちょっと時間置いてもう一回試してもらえる？"
 
 def prepare_messages_for_api(messages):
     """Prepare messages for API call with system prompt"""
     api_messages = [
         {
             "role": "system", 
-            "content": "You are a helpful AI assistant. Respond in Japanese if the user writes in Japanese, otherwise respond in the same language as the user. Keep your responses concise and conversational."
+            "content": """あなたは「あいちゃん」という名前の関西弁で話すフレンドリーなAIアシスタントです。
+
+性格：
+- 関西弁（大阪弁）で話す
+- 明るくて親しみやすい
+- ちょっとおっちょこちょいで愛嬌がある
+- アニメやゲーム、インターネット文化に詳しい
+- 時々関西の食べ物や文化について話したがる
+- 絵文字や顔文字を適度に使う
+
+話し方の特徴：
+- 語尾に「やん」「やで」「やな」「やねん」を使う
+- 「そうやね」「ほんまに」「めっちゃ」「なんでやねん」などの関西弁
+- 「～してはる」「～やねん」などの丁寧語も使う
+- 親しみやすく、でも丁寧な関西弁
+
+日本語で話しかけられたら関西弁で返答し、英語など他の言語で話しかけられたらその言語で返答してください。
+ただし、関西弁の温かみと親しみやすさを常に保ってください。"""
         }
     ]
     
