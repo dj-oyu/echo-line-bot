@@ -9,6 +9,7 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    environment: env
     if: github.event_name == 'pull_request' && github.base_ref == 'main'
     
     steps:
