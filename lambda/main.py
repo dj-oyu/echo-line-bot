@@ -1,7 +1,7 @@
 import json
-import requests
 import logging
 import os
+import re
 import openai
 from linebot.v3 import (
     WebhookHandler
@@ -19,8 +19,25 @@ from linebot.v3.messaging import (
 from linebot.v3.webhooks import (
     MessageEvent,
     TextMessageContent,
-    
 )
+
+BOT_USER_ID = None
+
+def get_bot_user_id():
+    """Retrieve and cache the bot's own user ID"""
+    global BOT_USER_ID
+    if BOT_USER_ID is None:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            BOT_USER_ID = line_bot_api.get_bot_info().user_id
+    return BOT_USER_ID
+
+def strip_mentions(text: str) -> str:
+    """Remove '@username' style mentions from text"""
+    if not text:
+        return text
+    cleaned = re.sub(r"@\S+", "", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -95,12 +112,31 @@ def lambda_handler(event, context):
 @handler.add(MessageEvent, message=TextMessageContent)
 def handle_message(event):
     logger.info("Dumping event: %s", json.dumps(event, default=str))
-    
-    # Get AI response from SambaNova
+
+    source_type = event.source.type
     user_message = event.message.text
-    ai_response = get_ai_response(user_message)
+    sanitized_message = strip_mentions(user_message)
+
+    # Check mentions when in group or room
+    if source_type in ("group", "room"):
+        mention = event.message.mention
+        if not mention:
+            logger.info("No mention found in group message; ignoring")
+            return
+        bot_id = get_bot_user_id()
+        if all(
+            (getattr(m, "user_id", None) != bot_id)
+            and not getattr(m, "is_self", False)
+            for m in mention.mentionees
+        ):
+            logger.info("Bot not mentioned; ignoring message")
+            return
+
+    # Get AI response from SambaNova
+    ai_response = get_ai_response(sanitized_message)
     
     logger.info(f"User message: {user_message}")
+    logger.info(f"Sanitized message: {sanitized_message}")
     logger.info(f"AI response: {ai_response}")
     
     with ApiClient(configuration) as api_client:

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import re
 import boto3
 import openai
 from datetime import datetime, timedelta
@@ -23,12 +24,21 @@ sambanova_client = openai.OpenAI(
     base_url="https://api.sambanova.ai/v1",
 )
 
+def strip_mentions(text: str) -> str:
+    """Remove '@username' style mentions from text"""
+    if not text:
+        return text
+    cleaned = re.sub(r"@\S+", "", text)
+    return re.sub(r"\s+", " ", cleaned).strip()
+
 def lambda_handler(event, context):
     logger.info("AI Processor received event: %s", json.dumps(event, default=str))
     
     try:
         user_id = event['userId']
         conversation_context = event['conversationContext']
+        source_type = event.get('sourceType')
+        source_id = event.get('sourceId')
         
         # Get AI response
         ai_response = get_ai_response(conversation_context['messages'])
@@ -50,7 +60,9 @@ def lambda_handler(event, context):
             'statusCode': 200,
             'userId': user_id,
             'aiResponse': ai_response,
-            'conversationContext': conversation_context
+            'conversationContext': conversation_context,
+            'sourceType': source_type,
+            'sourceId': source_id,
         }
     
     except Exception as e:
@@ -59,7 +71,9 @@ def lambda_handler(event, context):
             'statusCode': 500,
             'error': str(e),
             'userId': event.get('userId', 'unknown'),
-            'aiResponse': "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
+            'aiResponse': "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜",
+            'sourceType': event.get('sourceType'),
+            'sourceId': event.get('sourceId'),
         }
 
 def get_ai_response(messages):
@@ -180,7 +194,7 @@ def prepare_messages_for_api(messages):
     for msg in messages:
         api_messages.append({
             "role": msg["role"],
-            "content": msg["content"]
+            "content": strip_mentions(msg["content"])
         })
     
     return api_messages
@@ -212,11 +226,10 @@ def is_conversation_reset_needed(messages):
         return False
     
     last_message = messages[-1]
-    
+
     # Reset indicators
     reset_keywords = [
         "新しい話題", "話題を変えて", "リセット", "最初から", "忘れて",
         "new topic", "change subject", "reset", "start over", "forget"
     ]
-    
-    return any(keyword in last_message['content'].lower() for keyword in reset_keywords)
+    return any(keyword in last_message["content"].lower() for keyword in reset_keywords)
