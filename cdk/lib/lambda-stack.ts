@@ -28,18 +28,11 @@ export class LineEchoStack extends cdk.Stack {
     const sambaNovaApiKey = new secretsmanager.Secret(this, 'SambaNovaApiKey', { secretName: 'SAMBA_NOVA_API_KEY' });
     const xaiApiKeySecret = new secretsmanager.Secret(this, 'XaiApiKeySecret', { secretName: 'XAI_API_KEY' });
 
-    // Lambda Layer
-    const commonLayer = new lambda.LayerVersion(this, 'CommonLayer', {
+    // Lambda Layer for shared dependencies (pre-built to avoid Docker)
+    const sharedLayer = new lambda.LayerVersion(this, 'SharedLayer', {
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
-      code: lambda.Code.fromAsset(resolve(__dirname, '../../'), {
-        bundling: {
-          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
-          command: [
-            'bash', '-c',
-            'mkdir -p /asset-output/python && pip install -r lambda/requirements.txt -t /asset-output/python'
-          ]
-        }
-      })
+      description: 'Pre-built shared layer for common dependencies',
     });
 
     // Lambda Functions
@@ -47,7 +40,7 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'webhook_handler.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
+      layers: [sharedLayer],
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: lineChannelSecret.secretName,
@@ -59,8 +52,8 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'ai_processor.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
-      timeout: cdk.Duration.seconds(30),
+      layers: [sharedLayer],
+      timeout: cdk.Duration.seconds(15),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: sambaNovaApiKey.secretName,
@@ -72,8 +65,8 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'interim_response_sender.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(10),
+        layers: [sharedLayer],
+          timeout: cdk.Duration.seconds(10),
         environment: {
             CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
         },
@@ -84,8 +77,8 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'grok_processor.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
+        layers: [sharedLayer],
+          timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
         environment: {
             XAI_API_KEY_SECRET_NAME: xaiApiKeySecret.secretName,
         },
@@ -96,7 +89,7 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'response_sender.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
+      layers: [sharedLayer],
       timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
@@ -114,19 +107,7 @@ export class LineEchoStack extends cdk.Stack {
     const processAiTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithSambaNova', {
         lambdaFunction: aiProcessorLambda,
         resultPath: '$.aiProcessorResult',
-        resultSelector: { 'Payload.
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
-  }
-}
-: '$.Payload' },
+        resultSelector: { 'Payload.$': '$.Payload' },
     });
 
     const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
@@ -139,8 +120,7 @@ export class LineEchoStack extends cdk.Stack {
         lambdaFunction: grokProcessorLambda,
         inputPath: '$.aiProcessorResult.Payload',
         resultPath: '$.grokProcessorResult',
-        resultSelector: { 'Payload.
-: '$.Payload' },
+        resultSelector: { 'Payload.$': '$.Payload' },
     });
 
     const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
@@ -161,165 +141,7 @@ export class LineEchoStack extends cdk.Stack {
         .otherwise(sendDirectResponseTask);
 
     const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
-      timeout: cdk.Duration.minutes(5),
-    });
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
-  }
-}
-: '$.Payload' },
-    });
-
-    const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
-        lambdaFunction: interimResponseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.interimResponseResult',
-    });
-
-    const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
-        lambdaFunction: grokProcessorLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.grokProcessorResult',
-        resultSelector: { 'Payload.
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
-  }
-}
-: '$.Payload' },
-    });
-
-    const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
-        lambdaFunction: interimResponseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.interimResponseResult',
-    });
-
-    const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
-        lambdaFunction: grokProcessorLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.grokProcessorResult',
-        resultSelector: { 'Payload.
-: '$.Payload' },
-    });
-
-    const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.grokProcessorResult.Payload',
-    });
-
-    const sendDirectResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendDirectResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-    });
-
-    const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
-        .when(
-            stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-            sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
-        )
-        .otherwise(sendDirectResponseTask);
-
-    const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
-      timeout: cdk.Duration.minutes(5),
-    });
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
-  }
-}
-: '$.Payload' },
-    });
-
-    const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.grokProcessorResult.Payload',
-    });
-
-    const sendDirectResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendDirectResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-    });
-
-    const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
-        .when(
-            stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-            sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
-        )
-        .otherwise(sendDirectResponseTask);
-
-    const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
-      timeout: cdk.Duration.minutes(5),
-    });
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
-  }
-}
-: '$.Payload' },
-    });
-
-    const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
-        lambdaFunction: interimResponseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.interimResponseResult',
-    });
-
-    const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
-        lambdaFunction: grokProcessorLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.grokProcessorResult',
-        resultSelector: { 'Payload.
-: '$.Payload' },
-    });
-
-    const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.grokProcessorResult.Payload',
-    });
-
-    const sendDirectResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendDirectResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-    });
-
-    const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
-        .when(
-            stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-            sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
-        )
-        .otherwise(sendDirectResponseTask);
-
-    const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
+      definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),
       timeout: cdk.Duration.minutes(5),
     });
 
