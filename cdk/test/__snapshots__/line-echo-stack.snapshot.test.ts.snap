@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+// Jest Snapshot v1, https://goo.gl/fbAQLP
 
 exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match API Gateway configuration snapshot 1`] = `
 {
