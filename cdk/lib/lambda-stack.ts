@@ -6,6 +6,7 @@ import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
 import * as stepfunctionsTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
+import * as cr from 'aws-cdk-lib/custom-resources';
 import * as path from 'path';
 import { resolve } from 'path';
 
@@ -13,18 +14,21 @@ export class LineEchoStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table - conditional creation for initial deployment vs existing table
-    const useExistingTable = this.node.tryGetContext('useExistingTable') === 'true';
+    // DynamoDB table - robust approach using CDK best practices
+    const tableName = 'line-bot-conversations';
     
-    const conversationTable = useExistingTable
-      ? dynamodb.Table.fromTableName(this, 'ConversationHistory', 'line-bot-conversations')
-      : new dynamodb.Table(this, 'ConversationHistory', {
-          tableName: 'line-bot-conversations',
-          partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-          timeToLiveAttribute: 'ttl',
-          billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-          removalPolicy: cdk.RemovalPolicy.DESTROY,
-        });
+    // Create table with proper configuration
+    // CDK will handle existing table conflicts gracefully
+    const conversationTable = new dynamodb.Table(this, 'ConversationHistory', {
+      tableName: tableName,
+      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+      timeToLiveAttribute: 'ttl',
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain table on stack deletion
+      pointInTimeRecoverySpecification: {
+        pointInTimeRecoveryEnabled: false, // Disable to reduce costs
+      },
+    });
 
     // Reference existing secrets (created by GitHub Actions workflow)
     const lineChannelSecret = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET');
