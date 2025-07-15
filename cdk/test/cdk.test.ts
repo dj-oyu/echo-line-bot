@@ -67,6 +67,18 @@ describe('LineEchoStack', () => {
     });
   });
 
+  test('All Lambda functions use the dependencies layer', () => {
+    const lambdaFunctions = template.findResources('AWS::Lambda::Function');
+    
+    // Verify each Lambda function has the dependencies layer attached
+    Object.values(lambdaFunctions).forEach((func: any) => {
+      expect(func.Properties.Layers).toBeDefined();
+      expect(func.Properties.Layers).toHaveLength(1);
+      // The layer reference should be a CloudFormation Ref to the DependenciesLayer
+      expect(func.Properties.Layers[0]).toHaveProperty('Ref');
+    });
+  });
+
   test('Correct number of resources created', () => {
     // Check resource counts without hardcoding resource names
     template.resourceCountIs('AWS::Lambda::Function', 5); // webhook, ai, response, interim_response_sender, grok
