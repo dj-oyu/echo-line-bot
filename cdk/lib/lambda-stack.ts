@@ -251,6 +251,7 @@ export class LineEchoStack extends cdk.Stack {
       definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),
       timeout: cdk.Duration.minutes(5),
       comment: 'Orchestrates AI processing workflow with optional web search',
+      stateMachineType: stepfunctions.StateMachineType.STANDARD,
     });
   }
 }
