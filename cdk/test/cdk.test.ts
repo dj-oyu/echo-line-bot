@@ -60,12 +60,7 @@ describe('LineEchoStack', () => {
     template.hasResourceProperties('AWS::ApiGateway::RestApi', {});
   });
 
-  test('Lambda layer created', () => {
-    template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-      CompatibleRuntimes: ['python3.12'],
-      Description: 'Pre-built shared layer for common dependencies'
-    });
-  });
+  // Note: Lambda layer removed to avoid Docker dependency in tests
 
   test('Correct number of resources created', () => {
     // Check resource counts without hardcoding resource names
@@ -73,7 +68,7 @@ describe('LineEchoStack', () => {
     template.resourceCountIs('AWS::DynamoDB::Table', 1);
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
     template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
-    template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
+    // Note: No longer using Lambda layer
   });
 
   test('All Lambda functions have correct runtime', () => {
