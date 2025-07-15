@@ -28,26 +28,13 @@ export class LineEchoStack extends cdk.Stack {
     const sambaNovaApiKey = new secretsmanager.Secret(this, 'SambaNovaApiKey', { secretName: 'SAMBA_NOVA_API_KEY' });
     const xaiApiKeySecret = new secretsmanager.Secret(this, 'XaiApiKeySecret', { secretName: 'XAI_API_KEY' });
 
-    // Lambda Layer
-    const commonLayer = new lambda.LayerVersion(this, 'CommonLayer', {
-      compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../'), {
-        bundling: {
-          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
-          command: [
-            'bash', '-c',
-            'mkdir -p /asset-output/python && pip install -r lambda/requirements.txt -t /asset-output/python'
-          ]
-        }
-      })
-    });
+    // Note: Dependencies are now included directly with each Lambda function
 
     // Lambda Functions
     const webhookLambda = new lambda.Function(this, 'WebhookHandler', {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'webhook_handler.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: lineChannelSecret.secretName,
@@ -60,8 +47,7 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'ai_processor.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
-      timeout: cdk.Duration.seconds(30),
+      timeout: cdk.Duration.seconds(15),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: sambaNovaApiKey.secretName,
@@ -73,8 +59,7 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'interim_response_sender.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(10),
+          timeout: cdk.Duration.seconds(10),
         environment: {
             CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
         },
@@ -85,8 +70,7 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'grok_processor.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
+          timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
         environment: {
             XAI_API_KEY_SECRET_NAME: xaiApiKeySecret.secretName,
         },
@@ -97,7 +81,6 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'response_sender.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
       timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
