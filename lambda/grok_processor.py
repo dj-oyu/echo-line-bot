@@ -15,8 +15,18 @@ XAI_API_KEY_SECRET_NAME = os.getenv("XAI_API_KEY_SECRET_NAME")
 # AWS clients
 secretsmanager = boto3.client('secretsmanager')
 
-# Function to get secrets from Secrets Manager
-def get_secret(secret_name):
+def get_secret(secret_name: str) -> dict:
+    """Get secret value from AWS Secrets Manager.
+    
+    Args:
+        secret_name: Name of the secret to retrieve
+        
+    Returns:
+        The secret value as a dictionary
+        
+    Raises:
+        Exception: If secret retrieval fails
+    """
     try:
         response = secretsmanager.get_secret_value(SecretId=secret_name)
         secret_string = response['SecretString']
@@ -28,7 +38,15 @@ def get_secret(secret_name):
 # xAI client (lazy initialization)
 XAI_API_KEY = None
 
-def get_xai_api_key():
+def get_xai_api_key() -> str:
+    """Get xAI API key from AWS Secrets Manager.
+    
+    Returns:
+        The xAI API key as a string
+        
+    Raises:
+        Exception: If API key retrieval fails
+    """
     global XAI_API_KEY
     if XAI_API_KEY is None:
         try:
@@ -39,8 +57,15 @@ def get_xai_api_key():
             raise
     return XAI_API_KEY
 
-def call_grok_api(query):
-    """Call xAI Grok API for search using official SDK"""
+def call_grok_api(query: str) -> str:
+    """Call xAI Grok API for search using official SDK.
+    
+    Args:
+        query: Search query string
+        
+    Returns:
+        Response content from Grok API
+    """
     try:
         logger.info(f"Calling Grok-4 with query: {query}")
         
@@ -65,7 +90,7 @@ def call_grok_api(query):
         logger.error(f"Error calling Grok-4 API: {e}")
         return f"ごめんやで～、こびとさんが情報見つけられへんかった...。もうちょっと簡単な言葉で聞いてみてくれる？"
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, _context) -> dict:
     logger.info("Grok Processor received event: %s", json.dumps(event, default=str))
     
     query = event.get('toolQuery')

@@ -2,7 +2,7 @@ import json
 import logging
 import os
 import boto3
-from datetime import datetime
+from datetime import datetime, timezone
 from linebot.v3.messaging import (
     Configuration,
     ApiClient,
@@ -23,8 +23,18 @@ secretsmanager = boto3.client('secretsmanager')
 dynamodb = boto3.resource('dynamodb')
 conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
 
-# Function to get secrets from Secrets Manager
-def get_secret(secret_name):
+def get_secret(secret_name: str) -> str:
+    """Get secret value from AWS Secrets Manager.
+    
+    Args:
+        secret_name: Name of the secret to retrieve
+        
+    Returns:
+        The secret value as a string
+        
+    Raises:
+        Exception: If secret retrieval fails
+    """
     try:
         response = secretsmanager.get_secret_value(SecretId=secret_name)
         return response['SecretString']
@@ -36,7 +46,7 @@ def get_secret(secret_name):
 CHANNEL_ACCESS_TOKEN = get_secret(CHANNEL_ACCESS_TOKEN_NAME)
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, _context) -> dict:
     logger.info("Response Sender received event: %s", json.dumps(event, default=str))
     
     try:
@@ -62,7 +72,7 @@ def lambda_handler(event, context):
             conversation_context['messages'].append({
                 'role': 'assistant',
                 'content': message_to_send,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             })
             save_conversation_context(user_id, conversation_context)
 
@@ -79,8 +89,16 @@ def lambda_handler(event, context):
             logger.error(f"Failed to send error message to user: {inner_e}")
         raise
 
-def send_line_message(to_id, message):
-    """Send message to a LINE destination using the Push API"""
+def send_line_message(to_id: str, message: str) -> None:
+    """Send message to a LINE destination using the Push API.
+    
+    Args:
+        to_id: LINE user or group ID to send message to
+        message: Message text to send
+        
+    Raises:
+        Exception: If message sending fails
+    """
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
@@ -95,8 +113,13 @@ def send_line_message(to_id, message):
         logger.error(f"Error sending LINE message: {e}")
         raise e
 
-def save_conversation_context(user_id, conversation_context):
-    """Save conversation context to DynamoDB"""
+def save_conversation_context(user_id: str, conversation_context: dict) -> None:
+    """Save conversation context to DynamoDB.
+    
+    Args:
+        user_id: User ID for the conversation
+        conversation_context: Conversation data to save
+    """
     try:
         # Clean up old messages before saving
         messages = conversation_context['messages']
@@ -104,7 +127,7 @@ def save_conversation_context(user_id, conversation_context):
             conversation_context['messages'] = messages[-20:]
             logger.info(f"Cleaned up conversation, kept last 20 messages")
 
-        conversation_context['lastActivity'] = datetime.utcnow().isoformat()
+        conversation_context['lastActivity'] = datetime.now(timezone.utc).isoformat()
         conversation_table.put_item(Item=conversation_context)
         logger.info(f"Saved conversation context for user {user_id}")
     except Exception as e:
