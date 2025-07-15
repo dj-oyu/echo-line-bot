@@ -5,8 +5,9 @@ import re
 import boto3
 from boto3.dynamodb.conditions import Key
 import openai
-from datetime import datetime
+from datetime import datetime, timezone
 import pytz
+from typing import Dict, List
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -20,8 +21,18 @@ dynamodb = boto3.resource('dynamodb')
 conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
 secretsmanager = boto3.client('secretsmanager')
 
-# Function to get secrets from Secrets Manager
-def get_secret(secret_name):
+def get_secret(secret_name: str) -> str:
+    """Get secret value from AWS Secrets Manager.
+    
+    Args:
+        secret_name: Name of the secret to retrieve
+        
+    Returns:
+        The secret value as a string
+        
+    Raises:
+        Exception: If secret retrieval fails
+    """
     try:
         response = secretsmanager.get_secret_value(SecretId=secret_name)
         return response['SecretString']
@@ -32,7 +43,12 @@ def get_secret(secret_name):
 # SambaNova client
 sambanova_client = None
 
-def get_sambanova_client():
+def get_sambanova_client() -> openai.OpenAI:
+    """Get or create SambaNova OpenAI client instance.
+    
+    Returns:
+        OpenAI client configured for SambaNova API
+    """
     global sambanova_client
     if sambanova_client is None:
         sambanova_api_key = get_secret(SAMBA_NOVA_API_KEY_NAME)
@@ -48,7 +64,7 @@ def strip_mentions(text: str) -> str:
     cleaned = re.sub(r"@\S+", "", text)
     return re.sub(r"\s+", " ", cleaned).strip()
 
-def lambda_handler(event, context):
+def lambda_handler(event: dict, _context) -> dict:
     logger.info("AI Processor received event: %s", json.dumps(event, default=str))
     
     try:
@@ -68,7 +84,7 @@ def lambda_handler(event, context):
             conversation_context['messages'].append({
                 'role': 'assistant',
                 'content': ai_response,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': datetime.now(timezone.utc).isoformat()
             })
             # No need to clean up here, can be done after final response
             save_conversation_context(user_id, conversation_context)
@@ -82,8 +98,15 @@ def lambda_handler(event, context):
         event['aiResponse'] = "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
         return event
 
-def get_ai_response(messages):
-    """Determines if a tool call is needed or returns a direct response."""
+def get_ai_response(messages: list) -> dict:
+    """Determines if a tool call is needed or returns a direct response.
+    
+    Args:
+        messages: List of conversation messages
+        
+    Returns:
+        Dict containing either tool call info or direct AI response
+    """
     try:
         logger.info(f"Calling SambaNova API with {len(messages)} messages")
         api_messages = prepare_messages_for_api(messages)
@@ -135,18 +158,33 @@ def get_ai_response(messages):
         logger.error(f"Error calling SambaNova API: {e}")
         return {"hasToolCall": False, "aiResponse": "あかん〜😅 あいちゃんの頭がちょっとこんがらがってもうたわ！もうちょっと時間置いてもう一回試してもらえる？"}
 
-def get_time_based_greeting():
+def get_time_based_greeting() -> str:
+    """Get time-appropriate greeting in Kansai dialect.
+    
+    Returns:
+        Greeting message based on current time in JST
+    """
     jst = pytz.timezone('Asia/Tokyo')
     now = datetime.now(jst)
     hour = now.hour
-    if 5 <= hour < 10: return "おはようさん！☀️ 今日も元気にいこうな〜"
-    if 10 <= hour < 12: return "おはよう！もうすぐお昼やね〜🌅"
-    if 12 <= hour < 17: return "こんにちは！☀️ 今日もええ天気やな〜"
-    if 17 <= hour < 19: return "夕方やね〜🌇 お疲れさまやで！"
-    if 19 <= hour < 23: return "こんばんは！🌙 今日も一日お疲れさまでした〜"
+    if 5 <= hour < 10:
+        return "おはようさん！☀️ 今日も元気にいこうな〜"
+    if 10 <= hour < 12:
+        return "おはよう！もうすぐお昼やね〜🌅"
+    if 12 <= hour < 17:
+        return "こんにちは！☀️ 今日もええ天気やな〜"
+    if 17 <= hour < 19:
+        return "夕方やね〜🌇 お疲れさまやで！"
+    if 19 <= hour < 23:
+        return "こんばんは！🌙 今日も一日お疲れさまでした〜"
     return "夜更かしやね〜🌙 無理せんといてや〜"
 
-def get_current_date_info():
+def get_current_date_info() -> dict:
+    """Get current date and time information in Japanese format.
+    
+    Returns:
+        Dict containing date, weekday, time, and season in Japanese
+    """
     jst = pytz.timezone('Asia/Tokyo')
     now = datetime.now(jst)
     weekdays = ['月', '火', '水', '木', '金', '土', '日']
@@ -157,13 +195,32 @@ def get_current_date_info():
         'season': get_season(now.month)
     }
 
-def get_season(month):
-    if month in [12, 1, 2]: return "冬"
-    if month in [3, 4, 5]: return "春"
-    if month in [6, 7, 8]: return "夏"
+def get_season(month: int) -> str:
+    """Get season name in Japanese based on month.
+    
+    Args:
+        month: Month number (1-12)
+        
+    Returns:
+        Season name in Japanese
+    """
+    if month in [12, 1, 2]:
+        return "冬"
+    if month in [3, 4, 5]:
+        return "春"
+    if month in [6, 7, 8]:
+        return "夏"
     return "秋"
 
-def prepare_messages_for_api(messages):
+def prepare_messages_for_api(messages: list) -> list:
+    """Prepare messages for SambaNova API with system prompt.
+    
+    Args:
+        messages: List of conversation messages
+        
+    Returns:
+        List of messages formatted for API with system prompt
+    """
     greeting = get_time_based_greeting()
     date_info = get_current_date_info()
     system_prompt = f"""あなたは「あいちゃん」という名前の関西弁で話すフレンドリーなAIアシスタントです。
@@ -201,16 +258,30 @@ def prepare_messages_for_api(messages):
         api_messages.append({"role": msg["role"], "content": strip_mentions(msg["content"])})
     return api_messages
 
-def save_conversation_context(user_id, conversation_context):
+def save_conversation_context(user_id: str, conversation_context: dict) -> None:
+    """Save conversation context to DynamoDB.
+    
+    Args:
+        user_id: User ID for the conversation
+        conversation_context: Conversation data to save
+    """
     try:
-        conversation_context['lastActivity'] = datetime.utcnow().isoformat()
+        conversation_context['lastActivity'] = datetime.now(timezone.utc).isoformat()
         conversation_table.put_item(Item=conversation_context)
         logger.info(f"Saved conversation context for user {user_id}")
     except Exception as e:
         logger.error(f"Error saving conversation context: {e}")
+        raise
 
-def delete_conversation_history(user_id):
-    """Deletes all conversation history for a given user."""
+def delete_conversation_history(user_id: str) -> bool:
+    """Delete all conversation history for a given user.
+    
+    Args:
+        user_id: User ID whose history should be deleted
+        
+    Returns:
+        True if deletion was successful, False otherwise
+    """
     try:
         # Query all items for the user
         response = conversation_table.query(

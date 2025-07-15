@@ -3,7 +3,7 @@ import logging
 import os
 import re
 import boto3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
 from linebot.v3.messaging import (
@@ -145,7 +145,7 @@ def handle_message(event):
     conversation_context['messages'].append({
         'role': 'user',
         'content': sanitized_message,
-        'timestamp': datetime.utcnow().isoformat()
+        'timestamp': datetime.now(timezone.utc).isoformat()
     })
     
     # Save conversation context
@@ -174,31 +174,31 @@ def get_conversation_context(user_id):
                 return conversation
         
         # Create new conversation
-        conversation_id = f"conv_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        conversation_id = f"conv_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         return {
             'userId': user_id,
             'conversationId': conversation_id,
             'messages': [],
-            'lastActivity': datetime.utcnow().isoformat(),
-            'ttl': int((datetime.utcnow() + timedelta(hours=24)).timestamp())
+            'lastActivity': datetime.now(timezone.utc).isoformat(),
+            'ttl': int((datetime.now(timezone.utc) + timedelta(hours=24)).timestamp())
         }
     
     except Exception as e:
         logger.error(f"Error getting conversation context: {e}")
         # Return new conversation on error
-        conversation_id = f"conv_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        conversation_id = f"conv_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}"
         return {
             'userId': user_id,
             'conversationId': conversation_id,
             'messages': [],
-            'lastActivity': datetime.utcnow().isoformat(),
-            'ttl': int((datetime.utcnow() + timedelta(hours=24)).timestamp())
+            'lastActivity': datetime.now(timezone.utc).isoformat(),
+            'ttl': int((datetime.now(timezone.utc) + timedelta(hours=24)).timestamp())
         }
 
 def save_conversation_context(user_id, conversation_context):
     """Save conversation context to DynamoDB"""
     try:
-        conversation_context['lastActivity'] = datetime.utcnow().isoformat()
+        conversation_context['lastActivity'] = datetime.now(timezone.utc).isoformat()
         conversation_table.put_item(Item=conversation_context)
         logger.info(f"Saved conversation context for user {user_id}")
     except Exception as e:
