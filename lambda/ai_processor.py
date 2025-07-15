@@ -30,11 +30,17 @@ def get_secret(secret_name):
         raise
 
 # SambaNova client
-sambanova_api_key = get_secret(SAMBA_NOVA_API_KEY_NAME)
-sambanova_client = openai.OpenAI(
-    api_key=sambanova_api_key,
-    base_url="https://api.sambanova.ai/v1",
-)
+sambanova_client = None
+
+def get_sambanova_client():
+    global sambanova_client
+    if sambanova_client is None:
+        sambanova_api_key = get_secret(SAMBA_NOVA_API_KEY_NAME)
+        sambanova_client = openai.OpenAI(
+            api_key=sambanova_api_key,
+            base_url="https://api.sambanova.ai/v1",
+        )
+    return sambanova_client
 
 def strip_mentions(text: str) -> str:
     if not text:
@@ -99,7 +105,7 @@ def get_ai_response(messages):
             }
         ]
 
-        response = sambanova_client.chat.completions.create(
+        response = get_sambanova_client().chat.completions.create(
             model="DeepSeek-V3-0324",
             messages=api_messages,
             temperature=0.7,
