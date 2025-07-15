@@ -60,15 +60,20 @@ describe('LineEchoStack', () => {
     template.hasResourceProperties('AWS::ApiGateway::RestApi', {});
   });
 
-  // Note: Lambda layer removed to avoid Docker dependency in tests
+  test('Lambda Layer created', () => {
+    template.hasResourceProperties('AWS::Lambda::LayerVersion', {
+      CompatibleRuntimes: ['python3.12'],
+      Description: 'Python dependencies for LINE bot Lambda functions'
+    });
+  });
 
   test('Correct number of resources created', () => {
     // Check resource counts without hardcoding resource names
-    template.resourceCountIs('AWS::Lambda::Function', 5); // webhook, ai, response, interim_response_sender, more
+    template.resourceCountIs('AWS::Lambda::Function', 5); // webhook, ai, response, interim_response_sender, grok
+    template.resourceCountIs('AWS::Lambda::LayerVersion', 1); // dependencies layer
     template.resourceCountIs('AWS::DynamoDB::Table', 1);
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
     template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
-    // Note: No longer using Lambda layer
   });
 
   test('All Lambda functions have correct runtime', () => {

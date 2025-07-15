@@ -44,8 +44,7 @@ jobs:
         
     - name: Build Lambda Layer
       run: |
-        echo "⚠️ Build Lambda Layer step placeholder - will be implemented in Layer PR"
-        echo "This step is added to prepare workflow for Lambda Layer implementation"
+        ./scripts/build-layer.sh
         
     - name: Install CDK dependencies
       run: |
@@ -104,8 +103,7 @@ jobs:
         
     - name: Build Lambda Layer
       run: |
-        echo "⚠️ Build Lambda Layer step placeholder - will be implemented in Layer PR"
-        echo "This step is added to prepare workflow for Lambda Layer implementation"
+        ./scripts/build-layer.sh
         
     - name: Install CDK dependencies
       run: |
