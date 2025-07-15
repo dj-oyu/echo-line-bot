@@ -19,14 +19,14 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: cdk/package-lock.json
         
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.12'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -56,10 +56,6 @@ jobs:
       run: |
         cd cdk
         npm run cdk synth
-      env:
-        CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
-        CHANNEL_SECRET: ${{ secrets.CHANNEL_SECRET }}
-        SAMBA_NOVA_API_KEY: ${{ secrets.SAMBA_NOVA_API_KEY }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -73,14 +69,14 @@ jobs:
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
         cache-dependency-path: cdk/package-lock.json
         
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.11'
+        python-version: '3.12'
         
     - name: Install uv
       uses: astral-sh/setup-uv@v4
@@ -107,15 +103,22 @@ jobs:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ap-northeast-1
+
+    - name: Update or Create Secrets
+      run: |
+        aws secretsmanager update-secret --secret-id LINE_CHANNEL_SECRET --secret-string '${{ secrets.CHANNEL_SECRET }}' || 
+        aws secretsmanager create-secret --name LINE_CHANNEL_SECRET --secret-string '${{ secrets.CHANNEL_SECRET }}'
+        aws secretsmanager update-secret --secret-id LINE_CHANNEL_ACCESS_TOKEN --secret-string '${{ secrets.CHANNEL_ACCESS_TOKEN }}' || 
+        aws secretsmanager create-secret --name LINE_CHANNEL_ACCESS_TOKEN --secret-string '${{ secrets.CHANNEL_ACCESS_TOKEN }}'
+        aws secretsmanager update-secret --secret-id SAMBA_NOVA_API_KEY --secret-string '${{ secrets.SAMBA_NOVA_API_KEY }}' || 
+        aws secretsmanager create-secret --name SAMBA_NOVA_API_KEY --secret-string '${{ secrets.SAMBA_NOVA_API_KEY }}'
+        aws secretsmanager update-secret --secret-id XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}' || 
+        aws secretsmanager create-secret --name XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}'
         
     - name: Deploy to AWS
       run: |
         cd cdk
         npm run cdk deploy -- --require-approval never
-      env:
-        CHANNEL_ACCESS_TOKEN: ${{ secrets.CHANNEL_ACCESS_TOKEN }}
-        CHANNEL_SECRET: ${{ secrets.CHANNEL_SECRET }}
-        SAMBA_NOVA_API_KEY: ${{ secrets.SAMBA_NOVA_API_KEY }}
         
     - name: Notify deployment success
       if: success()
