@@ -132,7 +132,7 @@ export class LineEchoStack extends cdk.Stack {
         .otherwise(sendDirectResponseTask);
 
     const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
+      definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),
       timeout: cdk.Duration.minutes(5),
     });
 
