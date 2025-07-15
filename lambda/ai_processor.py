@@ -217,13 +217,12 @@ def delete_conversation_history(user_id):
             KeyConditionExpression=Key('userId').eq(user_id)
         )
         
-        # Delete each item
+        # Delete each item using only the partition key (userId)
         with conversation_table.batch_writer() as batch:
             for item in response['Items']:
                 batch.delete_item(
                     Key={
-                        'userId': str(item['userId']),
-                        'conversationId': str(item['conversationId'])
+                        'userId': str(item['userId'])
                     }
                 )
         
