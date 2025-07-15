@@ -16,6 +16,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+        
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -39,13 +44,8 @@ jobs:
         
     - name: Build Lambda Layer
       run: |
-        chmod +x scripts/build-layer.sh
-        ./scripts/build-layer.sh
-        
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: latest
+        echo "⚠️ Build Lambda Layer step placeholder - will be implemented in Layer PR"
+        echo "This step is added to prepare workflow for Lambda Layer implementation"
         
     - name: Install CDK dependencies
       run: |
@@ -76,6 +76,11 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: latest
+        
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
@@ -99,13 +104,8 @@ jobs:
         
     - name: Build Lambda Layer
       run: |
-        chmod +x scripts/build-layer.sh
-        ./scripts/build-layer.sh
-        
-    - name: Install pnpm
-      uses: pnpm/action-setup@v4
-      with:
-        version: latest
+        echo "⚠️ Build Lambda Layer step placeholder - will be implemented in Layer PR"
+        echo "This step is added to prepare workflow for Lambda Layer implementation"
         
     - name: Install CDK dependencies
       run: |
