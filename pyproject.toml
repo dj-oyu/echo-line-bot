@@ -11,3 +11,8 @@ dependencies = [
     "pytz>=2023.3",
     "xai-sdk>=1.0.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "lambda/tests",
+]

@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import boto3
+from boto3.dynamodb.conditions import Key
 import openai
 from datetime import datetime
 import pytz
@@ -172,3 +173,27 @@ def save_conversation_context(user_id, conversation_context):
         logger.info(f"Saved conversation context for user {user_id}")
     except Exception as e:
         logger.error(f"Error saving conversation context: {e}")
+
+def delete_conversation_history(user_id):
+    """Deletes all conversation history for a given user."""
+    try:
+        # Query all items for the user
+        response = conversation_table.query(
+            KeyConditionExpression=Key('userId').eq(user_id)
+        )
+        
+        # Delete each item
+        with conversation_table.batch_writer() as batch:
+            for item in response['Items']:
+                batch.delete_item(
+                    Key={
+                        'userId': item['userId'],
+                        'conversationId': item['conversationId']
+                    }
+                )
+        
+        logger.info(f"Deleted conversation history for user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting conversation history for user {user_id}: {e}")
+        return False

@@ -15,6 +15,9 @@ from linebot.v3.messaging import (
 )
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
+# Import the ai_processor module
+import ai_processor
+
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -98,10 +101,28 @@ def handle_message(event):
     
     user_id = event.source.user_id
     user_message = event.message.text
+    reply_token = event.reply_token
+
+    # Check for forget command
+    if user_message.strip().lower() in ["/forget", "/忘れて"]:
+        if ai_processor.delete_conversation_history(user_id):
+            reply_text = "会話の履歴を削除しました。"
+        else:
+            reply_text = "履歴の削除に失敗しました。"
+        
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.reply_message(
+                ReplyMessageRequest(
+                    reply_token=reply_token,
+                    messages=[TextMessage(text=reply_text)]
+                )
+            )
+        return
+
     sanitized_message = strip_mentions(user_message)
     source_type = event.source.type
     source_id = getattr(event.source, f"{source_type}_id", None)
-    reply_token = event.reply_token
 
     # Check mentions when in group or room
     if source_type in ("group", "room"):

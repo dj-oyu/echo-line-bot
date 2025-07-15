@@ -55,7 +55,7 @@ describe('LineEchoStack', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Handler: 'grok_processor.lambda_handler',
       Runtime: 'python3.12',
-      Timeout: 60
+      Timeout: 180
     });
 
     // Check response sender
@@ -117,7 +117,7 @@ describe('LineEchoStack', () => {
     template.hasResourceProperties('AWS::Lambda::Function', {
       Handler: 'grok_processor.lambda_handler',
       Runtime: 'python3.12',
-      Timeout: 60
+      Timeout: 180
     });
 
     // Verify grok processor has XAI API environment variable
