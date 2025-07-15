@@ -1,0 +1,2407 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match API Gateway configuration snapshot 1`] = `
+{
+  "EndpointEEF1FD8F": {
+    "Properties": {
+      "BinaryMediaTypes": [
+        "*/*",
+      ],
+      "Description": "LINE Bot Webhook API",
+      "Name": "Endpoint",
+    },
+    "Type": "AWS::ApiGateway::RestApi",
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match CloudFormation outputs snapshot 1`] = `
+{
+  "ApiGatewayUrl": {
+    "Description": "API Gateway URL for LINE webhook",
+    "HasValue": true,
+  },
+  "ConversationTableName": {
+    "Description": "DynamoDB table name for conversation history",
+    "HasValue": true,
+  },
+  "Endpoint8024A810": {
+    "Description": undefined,
+    "HasValue": true,
+  },
+  "StateMachineArn": {
+    "Description": "Step Functions state machine ARN",
+    "HasValue": true,
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match CloudFormation template snapshot 1`] = `
+{
+  "Description": "LINE Echo Bot with AI processing capabilities",
+  "Outputs": {
+    "ApiGatewayUrl": {
+      "Description": "API Gateway URL for LINE webhook",
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "EndpointEEF1FD8F",
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region",
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "EndpointDeploymentStageprodB78BEEA0",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
+    "ConversationTableName": {
+      "Description": "DynamoDB table name for conversation history",
+      "Value": {
+        "Ref": "ConversationHistoryD9612A4F",
+      },
+    },
+    "Endpoint8024A810": {
+      "Value": {
+        "Fn::Join": [
+          "",
+          [
+            "https://",
+            {
+              "Ref": "EndpointEEF1FD8F",
+            },
+            ".execute-api.",
+            {
+              "Ref": "AWS::Region",
+            },
+            ".",
+            {
+              "Ref": "AWS::URLSuffix",
+            },
+            "/",
+            {
+              "Ref": "EndpointDeploymentStageprodB78BEEA0",
+            },
+            "/",
+          ],
+        ],
+      },
+    },
+    "StateMachineArn": {
+      "Description": "Step Functions state machine ARN",
+      "Value": {
+        "Ref": "AIProcessingWorkflow70CB3890",
+      },
+    },
+  },
+  "Parameters": {
+    "BootstrapVersion": {
+      "Default": "/cdk-bootstrap/hnb659fds/version",
+      "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]",
+      "Type": "AWS::SSM::Parameter::Value<String>",
+    },
+  },
+  "Resources": {
+    "AIProcessingWorkflow70CB3890": {
+      "DeletionPolicy": "Delete",
+      "DependsOn": [
+        "AIProcessingWorkflowRoleDefaultPolicy424483D0",
+        "AIProcessingWorkflowRoleCA6186E7",
+      ],
+      "Properties": {
+        "DefinitionString": {
+          "Fn::Join": [
+            "",
+            [
+              "{"StartAt":"ProcessWithSambaNova","States":{"ProcessWithSambaNova":{"Next":"CheckForToolCall","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "AiProcessor07B99A55",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"CheckForToolCall":{"Type":"Choice","Choices":[{"Variable":"$.aiProcessorResult.Payload.hasToolCall","BooleanEquals":true,"Next":"SendInterimResponse"}],"Default":"SendDirectResponse"},"SendDirectResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "ResponseSenderA99BF567",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"SendInterimResponse":{"Next":"ProcessWithGrok","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.interimResponseResult","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "InterimResponseSender14E21E4D",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"ProcessWithGrok":{"Next":"SendFinalResponse","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.grokProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "GrokProcessor251242A2",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"SendFinalResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.grokProcessorResult.Payload","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "ResponseSenderA99BF567",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}}},"TimeoutSeconds":300,"Comment":"Orchestrates AI processing workflow with optional web search"}",
+            ],
+          ],
+        },
+        "RoleArn": {
+          "Fn::GetAtt": [
+            "AIProcessingWorkflowRoleCA6186E7",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::StepFunctions::StateMachine",
+      "UpdateReplacePolicy": "Delete",
+    },
+    "AIProcessingWorkflowRoleCA6186E7": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "states.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AIProcessingWorkflowRoleDefaultPolicy424483D0": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "AiProcessor07B99A55",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "AiProcessor07B99A55",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ResponseSenderA99BF567",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ResponseSenderA99BF567",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "InterimResponseSender14E21E4D",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "InterimResponseSender14E21E4D",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "GrokProcessor251242A2",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "GrokProcessor251242A2",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AIProcessingWorkflowRoleDefaultPolicy424483D0",
+        "Roles": [
+          {
+            "Ref": "AIProcessingWorkflowRoleCA6186E7",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AiProcessor07B99A55": {
+      "DependsOn": [
+        "AiProcessorServiceRoleDefaultPolicy8F442964",
+        "AiProcessorServiceRole60DF3539",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "414fe923b4a79395eb32f0d2eb01ccbc9091690a5e87f6142a6ef2f879e5d948.zip",
+        },
+        "Description": "Processes user messages using SambaNova AI",
+        "Environment": {
+          "Variables": {
+            "CONVERSATION_TABLE_NAME": {
+              "Ref": "ConversationHistoryD9612A4F",
+            },
+            "SAMBA_NOVA_API_KEY_NAME": "SAMBA_NOVA_API_KEY",
+          },
+        },
+        "Handler": "ai_processor.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "DependenciesLayerDF300E31",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "AiProcessorServiceRole60DF3539",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.12",
+        "Timeout": 15,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "AiProcessorServiceRole60DF3539": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AiProcessorServiceRoleDefaultPolicy8F442964": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:SAMBA_NOVA_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "AiProcessorServiceRoleDefaultPolicy8F442964",
+        "Roles": [
+          {
+            "Ref": "AiProcessorServiceRole60DF3539",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ConversationHistoryD9612A4F": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "userId",
+            "AttributeType": "S",
+          },
+        ],
+        "BillingMode": "PAY_PER_REQUEST",
+        "KeySchema": [
+          {
+            "AttributeName": "userId",
+            "KeyType": "HASH",
+          },
+        ],
+        "PointInTimeRecoverySpecification": {
+          "PointInTimeRecoveryEnabled": false,
+        },
+        "TableName": "line-bot-conversations",
+        "TimeToLiveSpecification": {
+          "AttributeName": "ttl",
+          "Enabled": true,
+        },
+      },
+      "Type": "AWS::DynamoDB::Table",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "DependenciesLayerDF300E31": {
+      "Properties": {
+        "CompatibleRuntimes": [
+          "python3.12",
+        ],
+        "Content": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "27ed19959a7e24879b2026f8affb8b50edfd8c6e739c81b9a87f42754c4b30e1.zip",
+        },
+        "Description": "Python dependencies for LINE bot Lambda functions",
+      },
+      "Type": "AWS::Lambda::LayerVersion",
+    },
+    "EndpointANY485C938B": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "WebhookHandler40BDAF19",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Fn::GetAtt": [
+            "EndpointEEF1FD8F",
+            "RootResourceId",
+          ],
+        },
+        "RestApiId": {
+          "Ref": "EndpointEEF1FD8F",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "EndpointANYApiPermissionTestStackEndpoint03B36749ANY689E75FB": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "WebhookHandler40BDAF19",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "EndpointEEF1FD8F",
+              },
+              "/",
+              {
+                "Ref": "EndpointDeploymentStageprodB78BEEA0",
+              },
+              "/*/",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "EndpointANYApiPermissionTestTestStackEndpoint03B36749ANY680CD1F5": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "WebhookHandler40BDAF19",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "EndpointEEF1FD8F",
+              },
+              "/test-invoke-stage/*/",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "EndpointAccountB8304247": {
+      "DeletionPolicy": "Retain",
+      "DependsOn": [
+        "EndpointEEF1FD8F",
+      ],
+      "Properties": {
+        "CloudWatchRoleArn": {
+          "Fn::GetAtt": [
+            "EndpointCloudWatchRoleC3C64E0F",
+            "Arn",
+          ],
+        },
+      },
+      "Type": "AWS::ApiGateway::Account",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "EndpointCloudWatchRoleC3C64E0F": {
+      "DeletionPolicy": "Retain",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+      "UpdateReplacePolicy": "Retain",
+    },
+    "EndpointDeployment318525DA10b091520390ec304849773f91617cfd": {
+      "DependsOn": [
+        "EndpointproxyANYC09721C5",
+        "Endpointproxy39E2174E",
+        "EndpointANY485C938B",
+      ],
+      "Metadata": {
+        "aws:cdk:do-not-refactor": true,
+      },
+      "Properties": {
+        "Description": "LINE Bot Webhook API",
+        "RestApiId": {
+          "Ref": "EndpointEEF1FD8F",
+        },
+      },
+      "Type": "AWS::ApiGateway::Deployment",
+    },
+    "EndpointDeploymentStageprodB78BEEA0": {
+      "DependsOn": [
+        "EndpointAccountB8304247",
+      ],
+      "Properties": {
+        "DeploymentId": {
+          "Ref": "EndpointDeployment318525DA10b091520390ec304849773f91617cfd",
+        },
+        "RestApiId": {
+          "Ref": "EndpointEEF1FD8F",
+        },
+        "StageName": "prod",
+      },
+      "Type": "AWS::ApiGateway::Stage",
+    },
+    "EndpointEEF1FD8F": {
+      "Properties": {
+        "BinaryMediaTypes": [
+          "*/*",
+        ],
+        "Description": "LINE Bot Webhook API",
+        "Name": "Endpoint",
+      },
+      "Type": "AWS::ApiGateway::RestApi",
+    },
+    "Endpointproxy39E2174E": {
+      "Properties": {
+        "ParentId": {
+          "Fn::GetAtt": [
+            "EndpointEEF1FD8F",
+            "RootResourceId",
+          ],
+        },
+        "PathPart": "{proxy+}",
+        "RestApiId": {
+          "Ref": "EndpointEEF1FD8F",
+        },
+      },
+      "Type": "AWS::ApiGateway::Resource",
+    },
+    "EndpointproxyANYApiPermissionTestStackEndpoint03B36749ANYproxyB6030531": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "WebhookHandler40BDAF19",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "EndpointEEF1FD8F",
+              },
+              "/",
+              {
+                "Ref": "EndpointDeploymentStageprodB78BEEA0",
+              },
+              "/*/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "EndpointproxyANYApiPermissionTestTestStackEndpoint03B36749ANYproxy4443EC2A": {
+      "Properties": {
+        "Action": "lambda:InvokeFunction",
+        "FunctionName": {
+          "Fn::GetAtt": [
+            "WebhookHandler40BDAF19",
+            "Arn",
+          ],
+        },
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {
+          "Fn::Join": [
+            "",
+            [
+              "arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":execute-api:",
+              {
+                "Ref": "AWS::Region",
+              },
+              ":",
+              {
+                "Ref": "AWS::AccountId",
+              },
+              ":",
+              {
+                "Ref": "EndpointEEF1FD8F",
+              },
+              "/test-invoke-stage/*/*",
+            ],
+          ],
+        },
+      },
+      "Type": "AWS::Lambda::Permission",
+    },
+    "EndpointproxyANYC09721C5": {
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "ANY",
+        "Integration": {
+          "IntegrationHttpMethod": "POST",
+          "Type": "AWS_PROXY",
+          "Uri": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":apigateway:",
+                {
+                  "Ref": "AWS::Region",
+                },
+                ":lambda:path/2015-03-31/functions/",
+                {
+                  "Fn::GetAtt": [
+                    "WebhookHandler40BDAF19",
+                    "Arn",
+                  ],
+                },
+                "/invocations",
+              ],
+            ],
+          },
+        },
+        "ResourceId": {
+          "Ref": "Endpointproxy39E2174E",
+        },
+        "RestApiId": {
+          "Ref": "EndpointEEF1FD8F",
+        },
+      },
+      "Type": "AWS::ApiGateway::Method",
+    },
+    "GrokProcessor251242A2": {
+      "DependsOn": [
+        "GrokProcessorServiceRoleDefaultPolicy7DF55481",
+        "GrokProcessorServiceRoleF8734B76",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "414fe923b4a79395eb32f0d2eb01ccbc9091690a5e87f6142a6ef2f879e5d948.zip",
+        },
+        "Description": "Processes queries using Grok AI for web search",
+        "Environment": {
+          "Variables": {
+            "XAI_API_KEY_SECRET_NAME": "XAI_API_KEY",
+          },
+        },
+        "Handler": "grok_processor.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "DependenciesLayerDF300E31",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "GrokProcessorServiceRoleF8734B76",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.12",
+        "Timeout": 180,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "GrokProcessorServiceRoleDefaultPolicy7DF55481": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:XAI_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "GrokProcessorServiceRoleDefaultPolicy7DF55481",
+        "Roles": [
+          {
+            "Ref": "GrokProcessorServiceRoleF8734B76",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GrokProcessorServiceRoleF8734B76": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "InterimResponseSender14E21E4D": {
+      "DependsOn": [
+        "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1",
+        "InterimResponseSenderServiceRole9CD7D4F1",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "414fe923b4a79395eb32f0d2eb01ccbc9091690a5e87f6142a6ef2f879e5d948.zip",
+        },
+        "Description": "Sends interim response while processing complex queries",
+        "Environment": {
+          "Variables": {
+            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
+          },
+        },
+        "Handler": "interim_response_sender.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "DependenciesLayerDF300E31",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "InterimResponseSenderServiceRole9CD7D4F1",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.12",
+        "Timeout": 10,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "InterimResponseSenderServiceRole9CD7D4F1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1",
+        "Roles": [
+          {
+            "Ref": "InterimResponseSenderServiceRole9CD7D4F1",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ResponseSenderA99BF567": {
+      "DependsOn": [
+        "ResponseSenderServiceRoleDefaultPolicyE216D348",
+        "ResponseSenderServiceRole58D7A13C",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "414fe923b4a79395eb32f0d2eb01ccbc9091690a5e87f6142a6ef2f879e5d948.zip",
+        },
+        "Description": "Sends final response to LINE and saves conversation history",
+        "Environment": {
+          "Variables": {
+            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
+            "CONVERSATION_TABLE_NAME": {
+              "Ref": "ConversationHistoryD9612A4F",
+            },
+          },
+        },
+        "Handler": "response_sender.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "DependenciesLayerDF300E31",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "ResponseSenderServiceRole58D7A13C",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.12",
+        "Timeout": 10,
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "ResponseSenderServiceRole58D7A13C": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ResponseSenderServiceRoleDefaultPolicyE216D348": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "ResponseSenderServiceRoleDefaultPolicyE216D348",
+        "Roles": [
+          {
+            "Ref": "ResponseSenderServiceRole58D7A13C",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "WebhookHandler40BDAF19": {
+      "DependsOn": [
+        "WebhookHandlerServiceRoleDefaultPolicyE376E30C",
+        "WebhookHandlerServiceRoleF07A4D12",
+      ],
+      "Properties": {
+        "Code": {
+          "S3Bucket": {
+            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
+          },
+          "S3Key": "414fe923b4a79395eb32f0d2eb01ccbc9091690a5e87f6142a6ef2f879e5d948.zip",
+        },
+        "Description": "Handles LINE webhook events and initiates AI processing",
+        "Environment": {
+          "Variables": {
+            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
+            "CHANNEL_SECRET_NAME": "LINE_CHANNEL_SECRET",
+            "CONVERSATION_TABLE_NAME": {
+              "Ref": "ConversationHistoryD9612A4F",
+            },
+            "STEP_FUNCTION_ARN": {
+              "Ref": "AIProcessingWorkflow70CB3890",
+            },
+          },
+        },
+        "Handler": "webhook_handler.lambda_handler",
+        "Layers": [
+          {
+            "Ref": "DependenciesLayerDF300E31",
+          },
+        ],
+        "Role": {
+          "Fn::GetAtt": [
+            "WebhookHandlerServiceRoleF07A4D12",
+            "Arn",
+          ],
+        },
+        "Runtime": "python3.12",
+      },
+      "Type": "AWS::Lambda::Function",
+    },
+    "WebhookHandlerServiceRoleDefaultPolicyE376E30C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_SECRET-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "AIProcessingWorkflow70CB3890",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "PolicyName": "WebhookHandlerServiceRoleDefaultPolicyE376E30C",
+        "Roles": [
+          {
+            "Ref": "WebhookHandlerServiceRoleF07A4D12",
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "WebhookHandlerServiceRoleF07A4D12": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+  "Rules": {
+    "CheckBootstrapVersion": {
+      "Assertions": [
+        {
+          "Assert": {
+            "Fn::Not": [
+              {
+                "Fn::Contains": [
+                  [
+                    "1",
+                    "2",
+                    "3",
+                    "4",
+                    "5",
+                  ],
+                  {
+                    "Ref": "BootstrapVersion",
+                  },
+                ],
+              },
+            ],
+          },
+          "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI.",
+        },
+      ],
+    },
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match DynamoDB table configuration snapshot 1`] = `
+{
+  "ConversationHistoryD9612A4F": {
+    "Properties": {
+      "AttributeDefinitions": [
+        {
+          "AttributeName": "userId",
+          "AttributeType": "S",
+        },
+      ],
+      "BillingMode": "PAY_PER_REQUEST",
+      "KeySchema": [
+        {
+          "AttributeName": "userId",
+          "KeyType": "HASH",
+        },
+      ],
+      "PointInTimeRecoverySpecification": {
+        "PointInTimeRecoveryEnabled": false,
+      },
+      "TableName": "line-bot-conversations",
+      "TimeToLiveSpecification": {
+        "AttributeName": "ttl",
+        "Enabled": true,
+      },
+    },
+    "Type": "AWS::DynamoDB::Table",
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match IAM roles and policies snapshot 1`] = `
+{
+  "policies": {
+    "AIProcessingWorkflowRoleDefaultPolicy424483D0": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "AiProcessor07B99A55",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "AiProcessor07B99A55",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ResponseSenderA99BF567",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "ResponseSenderA99BF567",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "InterimResponseSender14E21E4D",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "InterimResponseSender14E21E4D",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": "lambda:InvokeFunction",
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "GrokProcessor251242A2",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      {
+                        "Fn::GetAtt": [
+                          "GrokProcessor251242A2",
+                          "Arn",
+                        ],
+                      },
+                      ":*",
+                    ],
+                  ],
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "AiProcessorServiceRoleDefaultPolicy8F442964": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:SAMBA_NOVA_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "GrokProcessorServiceRoleDefaultPolicy7DF55481": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:XAI_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ResponseSenderServiceRoleDefaultPolicyE216D348": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "WebhookHandlerServiceRoleDefaultPolicyE376E30C": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_SECRET-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+                {
+                  "Ref": "AWS::NoValue",
+                },
+              ],
+            },
+            {
+              "Action": "states:StartExecution",
+              "Effect": "Allow",
+              "Resource": {
+                "Ref": "AIProcessingWorkflow70CB3890",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+  },
+  "roles": {
+    "AIProcessingWorkflowRoleCA6186E7": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "states.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": undefined,
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "AiProcessorServiceRole60DF3539": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "EndpointCloudWatchRoleC3C64E0F": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "apigateway.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "GrokProcessorServiceRoleF8734B76": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "InterimResponseSenderServiceRole9CD7D4F1": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "ResponseSenderServiceRole58D7A13C": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+    "WebhookHandlerServiceRoleF07A4D12": {
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Statement": [
+            {
+              "Action": "sts:AssumeRole",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "lambda.amazonaws.com",
+              },
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+        "ManagedPolicyArns": [
+          {
+            "Fn::Join": [
+              "",
+              [
+                "arn:",
+                {
+                  "Ref": "AWS::Partition",
+                },
+                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
+              ],
+            ],
+          },
+        ],
+      },
+      "Type": "AWS::IAM::Role",
+    },
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match Lambda function configurations snapshot 1`] = `
+{
+  "AiProcessor07B99A55": {
+    "Properties": {
+      "Description": "Processes user messages using SambaNova AI",
+      "Environment": {
+        "Variables": [
+          "CONVERSATION_TABLE_NAME",
+          "SAMBA_NOVA_API_KEY_NAME",
+        ],
+      },
+      "Handler": "ai_processor.lambda_handler",
+      "Runtime": "python3.12",
+      "Timeout": 15,
+    },
+    "Type": "AWS::Lambda::Function",
+  },
+  "GrokProcessor251242A2": {
+    "Properties": {
+      "Description": "Processes queries using Grok AI for web search",
+      "Environment": {
+        "Variables": [
+          "XAI_API_KEY_SECRET_NAME",
+        ],
+      },
+      "Handler": "grok_processor.lambda_handler",
+      "Runtime": "python3.12",
+      "Timeout": 180,
+    },
+    "Type": "AWS::Lambda::Function",
+  },
+  "InterimResponseSender14E21E4D": {
+    "Properties": {
+      "Description": "Sends interim response while processing complex queries",
+      "Environment": {
+        "Variables": [
+          "CHANNEL_ACCESS_TOKEN_NAME",
+        ],
+      },
+      "Handler": "interim_response_sender.lambda_handler",
+      "Runtime": "python3.12",
+      "Timeout": 10,
+    },
+    "Type": "AWS::Lambda::Function",
+  },
+  "ResponseSenderA99BF567": {
+    "Properties": {
+      "Description": "Sends final response to LINE and saves conversation history",
+      "Environment": {
+        "Variables": [
+          "CHANNEL_ACCESS_TOKEN_NAME",
+          "CONVERSATION_TABLE_NAME",
+        ],
+      },
+      "Handler": "response_sender.lambda_handler",
+      "Runtime": "python3.12",
+      "Timeout": 10,
+    },
+    "Type": "AWS::Lambda::Function",
+  },
+  "WebhookHandler40BDAF19": {
+    "Properties": {
+      "Description": "Handles LINE webhook events and initiates AI processing",
+      "Environment": {
+        "Variables": [
+          "CHANNEL_ACCESS_TOKEN_NAME",
+          "CHANNEL_SECRET_NAME",
+          "CONVERSATION_TABLE_NAME",
+          "STEP_FUNCTION_ARN",
+        ],
+      },
+      "Handler": "webhook_handler.lambda_handler",
+      "Runtime": "python3.12",
+      "Timeout": undefined,
+    },
+    "Type": "AWS::Lambda::Function",
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests Environment-Specific Snapshots should match development environment snapshot 1`] = `
+{
+  "functionCount": 5,
+  "runtimes": [
+    "python3.12",
+  ],
+  "timeouts": [
+    10,
+    10,
+    15,
+    180,
+    3,
+  ],
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests Performance Configuration Snapshots should match performance settings snapshot 1`] = `
+{
+  "dynamodb": {
+    "billingModes": [
+      "PAY_PER_REQUEST",
+    ],
+  },
+  "lambda": {
+    "timeouts": [
+      {
+        "handler": "ai_processor.lambda_handler",
+        "timeout": 15,
+      },
+      {
+        "handler": "grok_processor.lambda_handler",
+        "timeout": 180,
+      },
+      {
+        "handler": "interim_response_sender.lambda_handler",
+        "timeout": 10,
+      },
+      {
+        "handler": "response_sender.lambda_handler",
+        "timeout": 10,
+      },
+      {
+        "handler": "webhook_handler.lambda_handler",
+        "timeout": 3,
+      },
+    ],
+  },
+  "stepFunctions": {
+    "timeouts": [
+      300,
+    ],
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests Resource Count Snapshots should match Lambda function count and names snapshot 1`] = `
+{
+  "count": 5,
+  "handlers": [
+    "ai_processor.lambda_handler",
+    "grok_processor.lambda_handler",
+    "interim_response_sender.lambda_handler",
+    "response_sender.lambda_handler",
+    "webhook_handler.lambda_handler",
+  ],
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests Resource Count Snapshots should match resource counts snapshot 1`] = `
+{
+  "AWS::ApiGateway::Account": 1,
+  "AWS::ApiGateway::Deployment": 1,
+  "AWS::ApiGateway::Method": 2,
+  "AWS::ApiGateway::Resource": 1,
+  "AWS::ApiGateway::RestApi": 1,
+  "AWS::ApiGateway::Stage": 1,
+  "AWS::DynamoDB::Table": 1,
+  "AWS::IAM::Policy": 6,
+  "AWS::IAM::Role": 7,
+  "AWS::Lambda::Function": 5,
+  "AWS::Lambda::LayerVersion": 1,
+  "AWS::Lambda::Permission": 4,
+  "AWS::StepFunctions::StateMachine": 1,
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots should match security policies snapshot 1`] = `
+{
+  "AIProcessingWorkflowRoleDefaultPolicy424483D0": [
+    {
+      "Actions": [
+        "lambda:InvokeFunction",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+    {
+      "Actions": [
+        "lambda:InvokeFunction",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+    {
+      "Actions": [
+        "lambda:InvokeFunction",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+    {
+      "Actions": [
+        "lambda:InvokeFunction",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+  ],
+  "AiProcessorServiceRoleDefaultPolicy8F442964": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+  ],
+  "GrokProcessorServiceRoleDefaultPolicy7DF55481": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+  ],
+  "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+  ],
+  "ResponseSenderServiceRoleDefaultPolicyE216D348": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+  ],
+  "WebhookHandlerServiceRoleDefaultPolicyE376E30C": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable",
+        "dynamodb:GetItem",
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+        "dynamodb:PutItem",
+        "dynamodb:Query",
+        "dynamodb:Scan",
+        "dynamodb:UpdateItem",
+      ],
+      "Effect": "Allow",
+      "Resources": 2,
+    },
+    {
+      "Actions": [
+        "states:StartExecution",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+  ],
+}
+`;
