@@ -63,8 +63,12 @@ def strip_mentions(text):
     """Remove '@username' style mentions from text"""
     if not text:
         return text
+    
+    # Remove @mentions (handles both @username and @display_name formats)
+    # This pattern matches @ followed by any non-whitespace characters
     cleaned = re.sub(r"@\S+", "", text)
-    # collapse multiple spaces left after removal
+    
+    # Collapse multiple spaces left after removal and trim
     return re.sub(r"\s+", " ", cleaned).strip()
 
 def lambda_handler(event, context):
@@ -102,9 +106,25 @@ def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
     reply_token = event.reply_token
+    source_type = event.source.type
+    source_id = getattr(event.source, f"{source_type}_id", None)
 
-    # Check for forget command
-    if user_message.strip().lower() in ["/forget", "/忘れて"]:
+    # Check mentions when in group or room
+    if source_type in ("group", "room"):
+        mention = event.message.mention
+        if not mention:
+            logger.info("No mention found in group message; ignoring")
+            return
+        bot_id = get_bot_user_id()
+        if all(m.user_id != bot_id for m in mention.mentionees):
+            logger.info("Bot not mentioned; ignoring message")
+            return
+
+    # Strip mentions first (important for group chats)
+    sanitized_message = strip_mentions(user_message)
+    
+    # Check for forget command after stripping mentions
+    if sanitized_message.strip().lower() in ["/forget", "/忘れて"]:
         if ai_processor.delete_conversation_history(user_id):
             reply_text = "会話の履歴を削除しました。"
         else:
@@ -119,21 +139,6 @@ def handle_message(event):
                 )
             )
         return
-
-    sanitized_message = strip_mentions(user_message)
-    source_type = event.source.type
-    source_id = getattr(event.source, f"{source_type}_id", None)
-
-    # Check mentions when in group or room
-    if source_type in ("group", "room"):
-        mention = event.message.mention
-        if not mention:
-            logger.info("No mention found in group message; ignoring")
-            return
-        bot_id = get_bot_user_id()
-        if all(m.user_id != bot_id for m in mention.mentionees):
-            logger.info("Bot not mentioned; ignoring message")
-            return
     
     # No immediate response - will respond via Push API after processing
     
