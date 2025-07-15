@@ -13,14 +13,18 @@ export class LineEchoStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table
-    const conversationTable = new dynamodb.Table(this, 'ConversationHistory', {
-      tableName: 'line-bot-conversations',
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      timeToLiveAttribute: 'ttl',
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // DynamoDB table - conditional creation for initial deployment vs existing table
+    const useExistingTable = this.node.tryGetContext('useExistingTable') === 'true';
+    
+    const conversationTable = useExistingTable
+      ? dynamodb.Table.fromTableName(this, 'ConversationHistory', 'line-bot-conversations')
+      : new dynamodb.Table(this, 'ConversationHistory', {
+          tableName: 'line-bot-conversations',
+          partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+          timeToLiveAttribute: 'ttl',
+          billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+          removalPolicy: cdk.RemovalPolicy.DESTROY,
+        });
 
     // Reference existing secrets (created by GitHub Actions workflow)
     const lineChannelSecret = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET');

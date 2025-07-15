@@ -18,7 +18,8 @@ describe('LineEchoStack', () => {
     template = Template.fromStack(stack);
   });
 
-  test('DynamoDB table created', () => {
+  test('DynamoDB table created (default behavior)', () => {
+    // Default behavior: create new table (useExistingTable context not set)
     template.hasResourceProperties('AWS::DynamoDB::Table', {
       TableName: 'line-bot-conversations',
       BillingMode: 'PAY_PER_REQUEST',
@@ -97,7 +98,7 @@ describe('LineEchoStack', () => {
     // Check resource counts without hardcoding resource names
     template.resourceCountIs('AWS::Lambda::Function', 5); // webhook, ai, response, interim_response_sender, grok
     template.resourceCountIs('AWS::Lambda::LayerVersion', 1); // dependencies layer
-    template.resourceCountIs('AWS::DynamoDB::Table', 1);
+    template.resourceCountIs('AWS::DynamoDB::Table', 1); // table created by default
     template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
     template.resourceCountIs('AWS::ApiGateway::RestApi', 1);
   });
