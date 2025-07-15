@@ -43,6 +43,20 @@ describe('LineEchoStack', () => {
       Timeout: 15
     });
 
+    // Check interim response sender
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'interim_response_sender.lambda_handler',
+      Runtime: 'python3.12',
+      Timeout: 10
+    });
+
+    // Check grok processor
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'grok_processor.lambda_handler',
+      Runtime: 'python3.12',
+      Timeout: 60
+    });
+
     // Check response sender
     template.hasResourceProperties('AWS::Lambda::Function', {
       Handler: 'response_sender.lambda_handler',
@@ -94,6 +108,37 @@ describe('LineEchoStack', () => {
     // Check that all Lambda functions use Python 3.12
     Object.values(lambdaFunctions).forEach((func: any) => {
       expect(func.Properties.Runtime).toBe('python3.12');
+    });
+  });
+
+  test('Grok processor has correct configuration', () => {
+    // Verify grok processor exists with specific timeout
+    template.hasResourceProperties('AWS::Lambda::Function', {
+      Handler: 'grok_processor.lambda_handler',
+      Runtime: 'python3.12',
+      Timeout: 60
+    });
+
+    // Verify grok processor has XAI API environment variable
+    const lambdaFunctions = template.findResources('AWS::Lambda::Function');
+    const grokProcessor = Object.values(lambdaFunctions).find((func: any) => 
+      func.Properties.Handler === 'grok_processor.lambda_handler'
+    );
+    
+    expect(grokProcessor).toBeDefined();
+    if (grokProcessor) {
+      expect(grokProcessor.Properties.Environment.Variables.XAI_API_KEY_SECRET_NAME).toBeDefined();
+    }
+  });
+
+  test('All Lambda functions have environment variables', () => {
+    const lambdaFunctions = template.findResources('AWS::Lambda::Function');
+    
+    // Verify each Lambda function has environment variables defined
+    Object.values(lambdaFunctions).forEach((func: any) => {
+      expect(func.Properties.Environment).toBeDefined();
+      expect(func.Properties.Environment.Variables).toBeDefined();
+      expect(Object.keys(func.Properties.Environment.Variables).length).toBeGreaterThan(0);
     });
   });
 });

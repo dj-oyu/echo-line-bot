@@ -22,11 +22,11 @@ export class LineEchoStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
-    // Secrets
-    const lineChannelSecret = new secretsmanager.Secret(this, 'LineChannelSecret', { secretName: 'LINE_CHANNEL_SECRET' });
-    const lineChannelAccessToken = new secretsmanager.Secret(this, 'LineChannelAccessToken', { secretName: 'LINE_CHANNEL_ACCESS_TOKEN' });
-    const sambaNovaApiKey = new secretsmanager.Secret(this, 'SambaNovaApiKey', { secretName: 'SAMBA_NOVA_API_KEY' });
-    const xaiApiKeySecret = new secretsmanager.Secret(this, 'XaiApiKeySecret', { secretName: 'XAI_API_KEY' });
+    // Reference existing secrets (created by GitHub Actions workflow)
+    const lineChannelSecret = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET');
+    const lineChannelAccessToken = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN');
+    const sambaNovaApiKey = secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY');
+    const xaiApiKeySecret = secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY');
 
     // Lambda Layer for shared Python dependencies
     const dependenciesLayer = new lambda.LayerVersion(this, 'DependenciesLayer', {
