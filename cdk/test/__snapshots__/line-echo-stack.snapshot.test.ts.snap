@@ -1,4 +1,4 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
 exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match API Gateway configuration snapshot 1`] = `
 {
@@ -190,6 +190,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "Arn",
           ],
         },
+        "StateMachineType": "STANDARD",
       },
       "Type": "AWS::StepFunctions::StateMachine",
       "UpdateReplacePolicy": "Delete",
@@ -2162,6 +2163,19 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       "Timeout": undefined,
     },
     "Type": "AWS::Lambda::Function",
+  },
+}
+`;
+
+exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots should match Step Functions state machine snapshot 1`] = `
+{
+  "AIProcessingWorkflow70CB3890": {
+    "Properties": {
+      "Comment": undefined,
+      "Definition": "[CloudFormation Function]",
+      "TimeoutSeconds": undefined,
+    },
+    "Type": "AWS::StepFunctions::StateMachine",
   },
 }
 `;
