@@ -48,10 +48,12 @@ export class LineEchoStack extends cdk.Stack {
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: lineChannelSecret.secretName,
+        CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
         STEP_FUNCTION_ARN: '', // Placeholder, will be populated later
       },
     });
     lineChannelSecret.grantRead(webhookLambda);
+    lineChannelAccessToken.grantRead(webhookLambda);
 
     const aiProcessorLambda = new lambda.Function(this, 'AiProcessor', {
       runtime: lambda.Runtime.PYTHON_3_12,
