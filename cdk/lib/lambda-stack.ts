@@ -4,22 +4,78 @@ import * as apigw from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 import * as stepfunctions from 'aws-cdk-lib/aws-stepfunctions';
 import * as stepfunctionsTasks from 'aws-cdk-lib/aws-stepfunctions-tasks';
-import * as iam from 'aws-cdk-lib/aws-iam';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
-import * as cr from 'aws-cdk-lib/custom-resources';
 import * as path from 'path';
-import { resolve } from 'path';
+import { Construct } from 'constructs';
 
+/**
+ * LINE Echo Bot Stack
+ * 
+ * This stack creates a serverless LINE bot with AI processing capabilities using:
+ * - Lambda functions for webhook handling and AI processing
+ * - DynamoDB for conversation state management
+ * - Step Functions for orchestrating AI workflows
+ * - API Gateway for receiving LINE webhook events
+ */
 export class LineEchoStack extends cdk.Stack {
-  constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
+  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table - robust approach using CDK best practices
+    // DynamoDB table for conversation history with TTL for automatic cleanup
+    const conversationTable = this.createConversationTable();
+
+    // Reference existing secrets (created by GitHub Actions workflow)
+    const secrets = this.createSecretReferences();
+
+    // Lambda Layer for shared Python dependencies
+    const dependenciesLayer = this.createDependenciesLayer();
+
+    // Lambda Functions
+    const lambdaFunctions = this.createLambdaFunctions(
+      conversationTable,
+      secrets,
+      dependenciesLayer
+    );
+
+    // Grant DynamoDB permissions
+    this.grantDynamoDBPermissions(conversationTable, lambdaFunctions);
+
+    // Step Functions Workflow for AI processing
+    const stateMachine = this.createStepFunctionsWorkflow(lambdaFunctions);
+
+    // Configure webhook Lambda with Step Functions ARN
+    lambdaFunctions.webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
+    stateMachine.grantStartExecution(lambdaFunctions.webhookLambda);
+
+    // API Gateway for LINE webhook endpoint
+    const api = new apigw.LambdaRestApi(this, 'Endpoint', { 
+      handler: lambdaFunctions.webhookLambda,
+      description: 'LINE Bot Webhook API',
+      binaryMediaTypes: ['*/*'] // Support for various content types
+    });
+
+    // CloudFormation outputs
+    new cdk.CfnOutput(this, 'ApiGatewayUrl', { 
+      value: api.url,
+      description: 'API Gateway URL for LINE webhook'
+    });
+    new cdk.CfnOutput(this, 'ConversationTableName', { 
+      value: conversationTable.tableName,
+      description: 'DynamoDB table name for conversation history'
+    });
+    new cdk.CfnOutput(this, 'StateMachineArn', { 
+      value: stateMachine.stateMachineArn,
+      description: 'Step Functions state machine ARN'
+    });
+  }
+
+  /**
+   * Creates DynamoDB table for conversation history with TTL
+   */
+  private createConversationTable(): dynamodb.Table {
     const tableName = 'line-bot-conversations';
     
-    // Create table with proper configuration
-    // CDK will handle existing table conflicts gracefully
-    const conversationTable = new dynamodb.Table(this, 'ConversationHistory', {
+    return new dynamodb.Table(this, 'ConversationHistory', {
       tableName: tableName,
       partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
       timeToLiveAttribute: 'ttl',
@@ -29,140 +85,172 @@ export class LineEchoStack extends cdk.Stack {
         pointInTimeRecoveryEnabled: false, // Disable to reduce costs
       },
     });
+  }
 
-    // Reference existing secrets (created by GitHub Actions workflow)
-    const lineChannelSecret = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET');
-    const lineChannelAccessToken = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN');
-    const sambaNovaApiKey = secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY');
-    const xaiApiKeySecret = secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY');
+  /**
+   * Creates references to existing secrets in AWS Secrets Manager
+   */
+  private createSecretReferences() {
+    return {
+      lineChannelSecret: secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET'),
+      lineChannelAccessToken: secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN'),
+      sambaNovaApiKey: secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY'),
+      xaiApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY'),
+    };
+  }
 
-    // Lambda Layer for shared Python dependencies
-    const dependenciesLayer = new lambda.LayerVersion(this, 'DependenciesLayer', {
+  /**
+   * Creates Lambda layer for Python dependencies
+   */
+  private createDependenciesLayer(): lambda.LayerVersion {
+    return new lambda.LayerVersion(this, 'DependenciesLayer', {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
       description: 'Python dependencies for LINE bot Lambda functions',
     });
+  }
 
-    // Lambda Functions
-    const webhookLambda = new lambda.Function(this, 'WebhookHandler', {
+  /**
+   * Creates all Lambda functions for the LINE bot
+   */
+  private createLambdaFunctions(
+    conversationTable: dynamodb.Table,
+    secrets: ReturnType<typeof this.createSecretReferences>,
+    dependenciesLayer: lambda.LayerVersion
+  ) {
+    const baseConfig = {
       runtime: lambda.Runtime.PYTHON_3_12,
-      handler: 'webhook_handler.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
       layers: [dependenciesLayer],
+    };
+
+    const webhookLambda = new lambda.Function(this, 'WebhookHandler', {
+      ...baseConfig,
+      handler: 'webhook_handler.lambda_handler',
+      description: 'Handles LINE webhook events and initiates AI processing',
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
-        CHANNEL_SECRET_NAME: lineChannelSecret.secretName,
-        CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
+        CHANNEL_SECRET_NAME: secrets.lineChannelSecret.secretName,
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
         STEP_FUNCTION_ARN: '', // Placeholder, will be populated later
       },
     });
-    lineChannelSecret.grantRead(webhookLambda);
-    lineChannelAccessToken.grantRead(webhookLambda);
+    secrets.lineChannelSecret.grantRead(webhookLambda);
+    secrets.lineChannelAccessToken.grantRead(webhookLambda);
 
     const aiProcessorLambda = new lambda.Function(this, 'AiProcessor', {
-      runtime: lambda.Runtime.PYTHON_3_12,
+      ...baseConfig,
       handler: 'ai_processor.lambda_handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [dependenciesLayer],
+      description: 'Processes user messages using SambaNova AI',
       timeout: cdk.Duration.seconds(15),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
-        SAMBA_NOVA_API_KEY_NAME: sambaNovaApiKey.secretName,
+        SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
       },
     });
-    sambaNovaApiKey.grantRead(aiProcessorLambda);
+    secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);
 
     const interimResponseSenderLambda = new lambda.Function(this, 'InterimResponseSender', {
-        runtime: lambda.Runtime.PYTHON_3_12,
-        handler: 'interim_response_sender.lambda_handler',
-        code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [dependenciesLayer],
-          timeout: cdk.Duration.seconds(10),
-        environment: {
-            CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
-        },
+      ...baseConfig,
+      handler: 'interim_response_sender.lambda_handler',
+      description: 'Sends interim response while processing complex queries',
+      timeout: cdk.Duration.seconds(10),
+      environment: {
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
+      },
     });
-    lineChannelAccessToken.grantRead(interimResponseSenderLambda);
+    secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
 
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
-        runtime: lambda.Runtime.PYTHON_3_12,
-        handler: 'grok_processor.lambda_handler',
-        code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [dependenciesLayer],
-          timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
-        environment: {
-            XAI_API_KEY_SECRET_NAME: xaiApiKeySecret.secretName,
-        },
+      ...baseConfig,
+      handler: 'grok_processor.lambda_handler',
+      description: 'Processes queries using Grok AI for web search',
+      timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
+      environment: {
+        XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
+      },
     });
-    xaiApiKeySecret.grantRead(grokProcessorLambda);
+    secrets.xaiApiKeySecret.grantRead(grokProcessorLambda);
 
     const responseSenderLambda = new lambda.Function(this, 'ResponseSender', {
-      runtime: lambda.Runtime.PYTHON_3_12,
+      ...baseConfig,
       handler: 'response_sender.lambda_handler',
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [dependenciesLayer],
+      description: 'Sends final response to LINE and saves conversation history',
       timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
-        CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
       },
     });
-    lineChannelAccessToken.grantRead(responseSenderLambda);
+    secrets.lineChannelAccessToken.grantRead(responseSenderLambda);
 
-    // Grant DynamoDB permissions
-    conversationTable.grantReadWriteData(webhookLambda);
-    conversationTable.grantReadWriteData(aiProcessorLambda);
-    conversationTable.grantReadWriteData(responseSenderLambda);
+    return {
+      webhookLambda,
+      aiProcessorLambda,
+      interimResponseSenderLambda,
+      grokProcessorLambda,
+      responseSenderLambda,
+    };
+  }
 
-    // Step Functions Workflow Definition
+  /**
+   * Grants DynamoDB permissions to relevant Lambda functions
+   */
+  private grantDynamoDBPermissions(
+    conversationTable: dynamodb.Table,
+    lambdaFunctions: ReturnType<typeof this.createLambdaFunctions>
+  ): void {
+    conversationTable.grantReadWriteData(lambdaFunctions.webhookLambda);
+    conversationTable.grantReadWriteData(lambdaFunctions.aiProcessorLambda);
+    conversationTable.grantReadWriteData(lambdaFunctions.responseSenderLambda);
+  }
+
+  /**
+   * Creates Step Functions workflow for AI processing
+   */
+  private createStepFunctionsWorkflow(
+    lambdaFunctions: ReturnType<typeof this.createLambdaFunctions>
+  ): stepfunctions.StateMachine {
     const processAiTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithSambaNova', {
-        lambdaFunction: aiProcessorLambda,
-        resultPath: '$.aiProcessorResult',
-        resultSelector: { 'Payload.$': '$.Payload' },
+      lambdaFunction: lambdaFunctions.aiProcessorLambda,
+      resultPath: '$.aiProcessorResult',
+      resultSelector: { 'Payload.$': '$.Payload' },
     });
 
     const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
-        lambdaFunction: interimResponseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.interimResponseResult',
+      lambdaFunction: lambdaFunctions.interimResponseSenderLambda,
+      inputPath: '$.aiProcessorResult.Payload',
+      resultPath: '$.interimResponseResult',
     });
 
     const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
-        lambdaFunction: grokProcessorLambda,
-        inputPath: '$.aiProcessorResult.Payload',
-        resultPath: '$.grokProcessorResult',
-        resultSelector: { 'Payload.$': '$.Payload' },
+      lambdaFunction: lambdaFunctions.grokProcessorLambda,
+      inputPath: '$.aiProcessorResult.Payload',
+      resultPath: '$.grokProcessorResult',
+      resultSelector: { 'Payload.$': '$.Payload' },
     });
 
     const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.grokProcessorResult.Payload',
+      lambdaFunction: lambdaFunctions.responseSenderLambda,
+      inputPath: '$.grokProcessorResult.Payload',
     });
 
     const sendDirectResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendDirectResponse', {
-        lambdaFunction: responseSenderLambda,
-        inputPath: '$.aiProcessorResult.Payload',
+      lambdaFunction: lambdaFunctions.responseSenderLambda,
+      inputPath: '$.aiProcessorResult.Payload',
     });
 
     const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
-        .when(
-            stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-            sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
-        )
-        .otherwise(sendDirectResponseTask);
+      .when(
+        stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
+        sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
+      )
+      .otherwise(sendDirectResponseTask);
 
-    const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
+    return new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
       definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),
       timeout: cdk.Duration.minutes(5),
+      comment: 'Orchestrates AI processing workflow with optional web search',
     });
-
-    // Grant webhook permissions
-    webhookLambda.addEnvironment('STEP_FUNCTION_ARN', stateMachine.stateMachineArn);
-    stateMachine.grantStartExecution(webhookLambda);
-
-    // API Gateway
-    const api = new apigw.LambdaRestApi(this, 'Endpoint', { handler: webhookLambda });
-
-    new cdk.CfnOutput(this, 'ApiGatewayUrl', { value: api.url });
   }
 }
