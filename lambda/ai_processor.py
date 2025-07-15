@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import boto3
+from boto3.dynamodb.conditions import Key
 import openai
 from datetime import datetime
 import pytz
@@ -178,8 +179,7 @@ def delete_conversation_history(user_id):
     try:
         # Query all items for the user
         response = conversation_table.query(
-            KeyConditionExpression='userId = :uid',
-            ExpressionAttributeValues={':uid': user_id}
+            KeyConditionExpression=Key('userId').eq(user_id)
         )
         
         # Delete each item
