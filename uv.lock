@@ -235,7 +235,7 @@ requires-dist = [
     { name = "line-bot-sdk", specifier = ">=3.17.1" },
     { name = "openai", specifier = ">=1.0.0" },
     { name = "pytz", specifier = ">=2023.3" },
-    { name = "xai-sdk", specifier = ">=0.1.0" },
+    { name = "xai-sdk", specifier = ">=1.0.0" },
 ]
 
 [[package]]
