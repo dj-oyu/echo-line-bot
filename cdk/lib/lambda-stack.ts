@@ -13,33 +13,30 @@ export class LineEchoStack extends cdk.Stack {
   constructor(scope: cdk.App, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // DynamoDB table
-    const conversationTable = new dynamodb.Table(this, 'ConversationHistory', {
-      tableName: 'line-bot-conversations',
-      partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
-      timeToLiveAttribute: 'ttl',
-      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
+    // DynamoDB table - conditional creation for initial deployment vs existing table
+    const useExistingTable = this.node.tryGetContext('useExistingTable') === 'true';
+    
+    const conversationTable = useExistingTable
+      ? dynamodb.Table.fromTableName(this, 'ConversationHistory', 'line-bot-conversations')
+      : new dynamodb.Table(this, 'ConversationHistory', {
+          tableName: 'line-bot-conversations',
+          partitionKey: { name: 'userId', type: dynamodb.AttributeType.STRING },
+          timeToLiveAttribute: 'ttl',
+          billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+          removalPolicy: cdk.RemovalPolicy.DESTROY,
+        });
 
-    // Secrets
-    const lineChannelSecret = new secretsmanager.Secret(this, 'LineChannelSecret', { secretName: 'LINE_CHANNEL_SECRET' });
-    const lineChannelAccessToken = new secretsmanager.Secret(this, 'LineChannelAccessToken', { secretName: 'LINE_CHANNEL_ACCESS_TOKEN' });
-    const sambaNovaApiKey = new secretsmanager.Secret(this, 'SambaNovaApiKey', { secretName: 'SAMBA_NOVA_API_KEY' });
-    const xaiApiKeySecret = new secretsmanager.Secret(this, 'XaiApiKeySecret', { secretName: 'XAI_API_KEY' });
+    // Reference existing secrets (created by GitHub Actions workflow)
+    const lineChannelSecret = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET');
+    const lineChannelAccessToken = secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN');
+    const sambaNovaApiKey = secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY');
+    const xaiApiKeySecret = secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY');
 
-    // Lambda Layer
-    const commonLayer = new lambda.LayerVersion(this, 'CommonLayer', {
+    // Lambda Layer for shared Python dependencies
+    const dependenciesLayer = new lambda.LayerVersion(this, 'DependenciesLayer', {
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
       compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../'), {
-        bundling: {
-          image: lambda.Runtime.PYTHON_3_12.bundlingImage,
-          command: [
-            'bash', '-c',
-            'mkdir -p /asset-output/python && pip install -r lambda/requirements.txt -t /asset-output/python'
-          ]
-        }
-      })
+      description: 'Python dependencies for LINE bot Lambda functions',
     });
 
     // Lambda Functions
@@ -47,7 +44,7 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'webhook_handler.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
+      layers: [dependenciesLayer],
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: lineChannelSecret.secretName,
@@ -60,8 +57,8 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'ai_processor.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
-      timeout: cdk.Duration.seconds(30),
+      layers: [dependenciesLayer],
+      timeout: cdk.Duration.seconds(15),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: sambaNovaApiKey.secretName,
@@ -73,8 +70,8 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'interim_response_sender.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(10),
+        layers: [dependenciesLayer],
+          timeout: cdk.Duration.seconds(10),
         environment: {
             CHANNEL_ACCESS_TOKEN_NAME: lineChannelAccessToken.secretName,
         },
@@ -85,8 +82,8 @@ export class LineEchoStack extends cdk.Stack {
         runtime: lambda.Runtime.PYTHON_3_12,
         handler: 'grok_processor.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-        layers: [commonLayer],
-        timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
+        layers: [dependenciesLayer],
+          timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
         environment: {
             XAI_API_KEY_SECRET_NAME: xaiApiKeySecret.secretName,
         },
@@ -97,7 +94,7 @@ export class LineEchoStack extends cdk.Stack {
       runtime: lambda.Runtime.PYTHON_3_12,
       handler: 'response_sender.lambda_handler',
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
-      layers: [commonLayer],
+      layers: [dependenciesLayer],
       timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
@@ -149,7 +146,7 @@ export class LineEchoStack extends cdk.Stack {
         .otherwise(sendDirectResponseTask);
 
     const stateMachine = new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
-      definition: processAiTask.next(choice),
+      definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),
       timeout: cdk.Duration.minutes(5),
     });
 
