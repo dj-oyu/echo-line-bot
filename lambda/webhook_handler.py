@@ -18,20 +18,32 @@ from linebot.v3.webhooks import MessageEvent, TextMessageContent
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment variables
-CHANNEL_SECRET = os.getenv("CHANNEL_SECRET")
-CHANNEL_ACCESS_TOKEN = os.getenv("CHANNEL_ACCESS_TOKEN")
-CONVERSATION_TABLE_NAME = os.getenv("CONVERSATION_TABLE_NAME")
-STEP_FUNCTION_ARN = os.getenv("STEP_FUNCTION_ARN")
-
 # AWS clients
 dynamodb = boto3.resource('dynamodb')
 stepfunctions = boto3.client('stepfunctions')
-conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
+secretsmanager = boto3.client('secretsmanager')
+
+# Environment variables
+CHANNEL_SECRET_NAME = os.getenv("CHANNEL_SECRET_NAME")
+CHANNEL_ACCESS_TOKEN_NAME = os.getenv("CHANNEL_ACCESS_TOKEN_NAME")
+CONVERSATION_TABLE_NAME = os.getenv("CONVERSATION_TABLE_NAME")
+STEP_FUNCTION_ARN = os.getenv("STEP_FUNCTION_ARN")
+
+# Function to get secrets from Secrets Manager
+def get_secret(secret_name):
+    try:
+        response = secretsmanager.get_secret_value(SecretId=secret_name)
+        return response['SecretString']
+    except Exception as e:
+        logger.error(f"Error retrieving secret {secret_name}: {e}")
+        raise
 
 # LINE Bot setup
+CHANNEL_SECRET = get_secret(CHANNEL_SECRET_NAME)
+CHANNEL_ACCESS_TOKEN = get_secret(CHANNEL_ACCESS_TOKEN_NAME)
 configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
+conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
 
 BOT_USER_ID = None
 
