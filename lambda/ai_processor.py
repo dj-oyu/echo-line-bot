@@ -193,8 +193,8 @@ def delete_conversation_history(user_id):
             for item in response['Items']:
                 batch.delete_item(
                     Key={
-                        'userId': item['userId'],
-                        'conversationId': item['conversationId']
+                        'userId': str(item['userId']),
+                        'conversationId': str(item['conversationId'])
                     }
                 )
         
