@@ -89,7 +89,7 @@ export class LineEchoStack extends cdk.Stack {
         handler: 'grok_processor.lambda_handler',
         code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
         layers: [dependenciesLayer],
-          timeout: cdk.Duration.seconds(60), // Longer timeout for potential long searches
+          timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
         environment: {
             XAI_API_KEY_SECRET_NAME: xaiApiKeySecret.secretName,
         },

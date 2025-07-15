@@ -50,7 +50,7 @@ def call_grok_api(query):
         # Create chat with search parameters
         chat = client.chat.create(
             model="grok-4",
-            search_parameters=SearchParameters(mode="auto"),
+            search_parameters=SearchParameters(mode="on"),
         )
         
         # Create search prompt in Japanese
