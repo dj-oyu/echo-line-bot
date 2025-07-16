@@ -179,6 +179,10 @@ def get_conversation_context(user_id):
             ScanIndexForward=False,
             Limit=1
         )
+        logger.info(
+            "Retrieved %d conversation(s) from DynamoDB",
+            len(response.get("Items", [])),
+        )
         
         if response['Items']:
             conversation = response['Items'][0]
