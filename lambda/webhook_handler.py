@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import base64
 import boto3
 from datetime import datetime, timedelta, timezone
 from linebot.v3 import WebhookHandler
@@ -83,6 +84,15 @@ def lambda_handler(event, context):
         }
     
     body = event['body']
+    if event.get('isBase64Encoded'):
+        try:
+            body = base64.b64decode(body).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Failed to decode base64 body: {e}")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'message': 'Invalid Body'})
+            }
     signature = headers.get('x-line-signature')
     
     try:
