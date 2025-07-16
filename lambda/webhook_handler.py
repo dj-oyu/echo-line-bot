@@ -189,7 +189,8 @@ def get_conversation_context(user_id):
             
             # Check if conversation is still active (within 30 minutes)
             last_activity = datetime.fromisoformat(conversation['lastActivity'])
-            if datetime.utcnow() - last_activity < timedelta(minutes=30):
+            now = datetime.utcnow().replace(tzinfo=timezone.utc)
+            if now - last_activity < timedelta(minutes=30):
                 return conversation
         
         # Create new conversation
