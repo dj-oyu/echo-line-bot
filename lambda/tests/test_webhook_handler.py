@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import patch, Mock
 import os
 import sys
+import base64
 
 # Add the lambda directory to the python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -9,7 +10,12 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 # Mock AWS services and secrets before importing webhook_handler
 with patch('boto3.client'), patch('boto3.resource'), \
      patch('webhook_handler.get_secret', return_value='test_secret'):
-    from webhook_handler import strip_mentions, handle_message, get_conversation_context
+    from webhook_handler import (
+        strip_mentions,
+        handle_message,
+        get_conversation_context,
+        lambda_handler,
+    )
 
 
 class TestWebhookHandler(unittest.TestCase):
@@ -210,7 +216,7 @@ class TestWebhookHandler(unittest.TestCase):
     @patch('webhook_handler.save_conversation_context')  
     @patch('webhook_handler.get_conversation_context')
     @patch('webhook_handler.start_ai_processing')
-    def test_handle_message_direct_chat(self, mock_start_ai, mock_get_context, 
+    def test_handle_message_direct_chat(self, mock_start_ai, mock_get_context,
                                        mock_save_context, mock_stepfunctions):
         """Test handling of message in direct chat."""
         # Mock event for direct chat
@@ -233,6 +239,22 @@ class TestWebhookHandler(unittest.TestCase):
         
         # Verify AI processing was started
         mock_start_ai.assert_called_once()
+
+    @patch('webhook_handler.handler.handle')
+    def test_lambda_handler_decodes_base64_body(self, mock_handle):
+        """Lambda handler should decode base64 bodies before signature check."""
+        payload = '{"hello": "world"}'
+        event = {
+            'headers': {'x-line-signature': 'sig'},
+            'body': base64.b64encode(payload.encode()).decode(),
+            'isBase64Encoded': True,
+        }
+
+        lambda_handler(event, None)
+
+        mock_handle.assert_called_once()
+        decoded_body = mock_handle.call_args[0][0]
+        self.assertEqual(decoded_body, payload)
 
 
 if __name__ == '__main__':

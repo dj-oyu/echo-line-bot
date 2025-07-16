@@ -6,7 +6,9 @@ import sys
 # Add the lambda directory to the python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ai_processor import delete_conversation_history
+# Patch AWS SDK before importing the module to avoid real AWS calls
+with patch('boto3.client'), patch('boto3.resource'):
+    from ai_processor import delete_conversation_history
 
 class TestAiProcessor(unittest.TestCase):
 
