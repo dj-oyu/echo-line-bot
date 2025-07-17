@@ -147,7 +147,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"SendInterimResponse":{"Next":"ProcessWithGrok","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.interimResponseResult","Resource":"arn:",
+              "","Payload.$":"$"}},"SendInterimResponse":{"Next":"ProcessWithGrok","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":null,"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -342,7 +342,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a3f159bd304a601d15b81ea0e4309ac13bd8ca6fb85e5f3ab3702511b76ffd90.zip",
+          "S3Key": "1501307e44ea8cb96aa189541e975f70c0d3a90e44cbd5bc84c1ea82d9741b63.zip",
         },
         "Description": "Processes user messages using SambaNova AI",
         "Environment": {
@@ -366,7 +366,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           ],
         },
         "Runtime": "python3.12",
-        "Timeout": 15,
+        "Timeout": 60,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -870,7 +870,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a3f159bd304a601d15b81ea0e4309ac13bd8ca6fb85e5f3ab3702511b76ffd90.zip",
+          "S3Key": "1501307e44ea8cb96aa189541e975f70c0d3a90e44cbd5bc84c1ea82d9741b63.zip",
         },
         "Description": "Processes queries using Grok AI for web search",
         "Environment": {
@@ -979,7 +979,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a3f159bd304a601d15b81ea0e4309ac13bd8ca6fb85e5f3ab3702511b76ffd90.zip",
+          "S3Key": "1501307e44ea8cb96aa189541e975f70c0d3a90e44cbd5bc84c1ea82d9741b63.zip",
         },
         "Description": "Sends interim response while processing complex queries",
         "Environment": {
@@ -1088,7 +1088,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a3f159bd304a601d15b81ea0e4309ac13bd8ca6fb85e5f3ab3702511b76ffd90.zip",
+          "S3Key": "1501307e44ea8cb96aa189541e975f70c0d3a90e44cbd5bc84c1ea82d9741b63.zip",
         },
         "Description": "Sends final response to LINE and saves conversation history",
         "Environment": {
@@ -1228,7 +1228,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "a3f159bd304a601d15b81ea0e4309ac13bd8ca6fb85e5f3ab3702511b76ffd90.zip",
+          "S3Key": "1501307e44ea8cb96aa189541e975f70c0d3a90e44cbd5bc84c1ea82d9741b63.zip",
         },
         "Description": "Handles LINE webhook events and initiates AI processing",
         "Environment": {
@@ -2100,7 +2100,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       },
       "Handler": "ai_processor.lambda_handler",
       "Runtime": "python3.12",
-      "Timeout": 15,
+      "Timeout": 60,
     },
     "Type": "AWS::Lambda::Function",
   },
@@ -2189,9 +2189,9 @@ exports[`LINE Echo Stack - Snapshot Tests Environment-Specific Snapshots should 
   "timeouts": [
     10,
     10,
-    15,
     180,
     3,
+    60,
   ],
 }
 `;
@@ -2207,7 +2207,7 @@ exports[`LINE Echo Stack - Snapshot Tests Performance Configuration Snapshots sh
     "timeouts": [
       {
         "handler": "ai_processor.lambda_handler",
-        "timeout": 15,
+        "timeout": 60,
       },
       {
         "handler": "grok_processor.lambda_handler",
