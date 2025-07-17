@@ -142,7 +142,7 @@ export class LineEchoStack extends cdk.Stack {
       ...baseConfig,
       handler: 'ai_processor.lambda_handler',
       description: 'Processes user messages using SambaNova AI',
-      timeout: cdk.Duration.seconds(15),
+      timeout: cdk.Duration.seconds(60),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
@@ -220,7 +220,7 @@ export class LineEchoStack extends cdk.Stack {
     const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
       lambdaFunction: lambdaFunctions.interimResponseSenderLambda,
       inputPath: '$.aiProcessorResult.Payload',
-      resultPath: '$.interimResponseResult',
+      resultPath: stepfunctions.JsonPath.DISCARD,
     });
 
     const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {

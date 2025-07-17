@@ -83,13 +83,13 @@ describe('LINE Echo Stack', () => {
     test('should create AI processor with sufficient timeout for API calls', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
-      // Then: AI processor should have 15-second timeout for SambaNova API calls
+      // Then: AI processor should have 60-second timeout for SambaNova API calls
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'ai_processor.lambda_handler',
         Runtime: 'python3.12',
         Description: 'Processes user messages using SambaNova AI',
-        Timeout: 15
+        Timeout: 60
       });
     });
 
