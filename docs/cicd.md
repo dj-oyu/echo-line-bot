@@ -15,6 +15,9 @@
 ### SambaNova API認証情報
 - `SAMBA_NOVA_API_KEY`: SambaNova Cloud APIキー
 
+### Groq API認証情報
+- `GROQ_API_KEY`: Groq APIキー
+
 ## ワークフローの動作
 
 ### Pull Request時
