@@ -80,7 +80,7 @@ def get_groq_client() -> openai.OpenAI:
         groq_api_key = get_secret(GROQ_API_KEY_NAME)
         groq_client = openai.OpenAI(
             api_key=groq_api_key,
-            base_url="https://api.groq.com/v1",
+            base_url="https://api.groq.com/openai/v1",
         )
     return groq_client
 
@@ -160,8 +160,8 @@ def get_ai_response(messages: list) -> dict:
             }
         ]
 
-        response = (
-            get_sambanova_client().chat.completions.create(
+        if AI_SELECT == "sambanova":
+            response = get_sambanova_client().chat.completions.create(
                 model="DeepSeek-V3-0324",
                 messages=api_messages,
                 temperature=0.7,
@@ -169,16 +169,16 @@ def get_ai_response(messages: list) -> dict:
                 tools=tools,
                 tool_choice="auto",
             )
-            if AI_SELECT == "sambanova"
-            else get_groq_client().chat.completions.create(
+        else:
+            response = get_groq_client().chat.completions.create(
                 model="openai/gpt-oss-20b",
+                reasoning_effort="medium",
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,
                 tools=tools,
                 tool_choice="auto",
             )
-        )
 
         message = response.choices[0].message
 
@@ -306,8 +306,6 @@ def prepare_messages_for_api(messages: list) -> list:
 日本語で話しかけられたら関西弁で返答し、英語など他の言語で話しかけられたらその言語で返答してください。
 ただし、関西弁の温かみと親しみやすさを常に保ってください。
 """
-    if AI_SELECT == "groq":
-        system_prompt += "reasoning: medium"
     api_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         api_messages.append(
