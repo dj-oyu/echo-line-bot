@@ -103,7 +103,7 @@ def lambda_handler(event: dict, _context) -> dict:
         response_payload = get_ai_response(conversation_context["messages"])
 
         # Merge the original event with the new response payload
-        # This ensures we pass through all necessary info like userId, sourceType, etc.
+        # This ensures we pass through all necessary info like userId, sourceType, quote_token, etc.
         event.update(response_payload)
 
         # If it's a normal response, add it to the conversation history now

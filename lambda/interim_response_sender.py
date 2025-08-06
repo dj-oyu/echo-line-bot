@@ -58,7 +58,7 @@ def lambda_handler(event: dict, _context) -> dict:
         interim_message = "なんやややこしい質問やな～ 今こびとさんに調べてきてもろとるから待っとき！"
         
         # Get quote token if available for group/room messages
-        quote_token = getattr(event.message, 'quote_token', None)
+        quote_token = event.get('quote_token', None)
         send_line_message(target_id, interim_message, quote_token, source_type)
         
         # Pass the original event payload through to the next step

@@ -107,21 +107,33 @@ def lambda_handler(event: dict, _context) -> dict:
         logger.info(f"Grok-4 response received: {grok_response}")
         
         # Return the response with all necessary context for the next lambda
-        return {
+        response_data = {
             "grokResponse": grok_response,
             "userId": event.get('userId'),
             "conversationContext": event.get('conversationContext'),
             "sourceType": event.get('sourceType'),
             "sourceId": event.get('sourceId')
         }
+        
+        # Include quote_token if present
+        if 'quote_token' in event:
+            response_data['quote_token'] = event['quote_token']
+            
+        return response_data
 
     except Exception as e:
         logger.error(f"Error in Grok processor: {e}")
         # Return a user-friendly error message with context
-        return {
+        error_response = {
             "grokResponse": "ごめんやで〜、こびとさんが情報見つけられへんかったわ...。もうちょっと簡単な言葉で聞いてみてくれる？",
             "userId": event.get('userId'),
             "conversationContext": event.get('conversationContext'),
             "sourceType": event.get('sourceType'),
             "sourceId": event.get('sourceId')
         }
+        
+        # Include quote_token if present
+        if 'quote_token' in event:
+            error_response['quote_token'] = event['quote_token']
+            
+        return error_response
