@@ -41,7 +41,7 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 - **DynamoDB テーブル**: `line-bot-conversations` - 会話履歴保存（TTL付き）
 - **Lambda 関数** (5個):
   - `WebhookHandler`: 高速 webhook 応答処理とStep Functions起動
-  - `AiProcessor`: SambaNova AI応答生成とツール呼び出し判定（15秒タイムアウト）
+  - `AiProcessor`: SambaNova AI応答生成とツール呼び出し判定（60秒タイムアウト）
   - `InterimResponseSender`: Grok検索時の中間応答送信（10秒タイムアウト）
   - `GrokProcessor`: xAI Grok検索処理（60秒タイムアウト）
   - `ResponseSender`: LINE Push API経由での最終応答送信（10秒タイムアウト）

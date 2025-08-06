@@ -71,7 +71,7 @@ export class TestDataFactory {
           handler: 'ai_processor.lambda_handler',
           runtime: 'python3.12',
           description: 'Processes user messages using SambaNova AI',
-          timeout: 15,
+          timeout: 60,
           requiresConversationTable: true,
           requiresSambaNovaCredentials: true
         },
@@ -400,7 +400,7 @@ export const TEST_CONSTANTS = {
   STEP_FUNCTIONS_TIMEOUT: 300,
   DEFAULT_LAMBDA_TIMEOUT: 3,
   GROK_LAMBDA_TIMEOUT: 180,
-  AI_PROCESSOR_TIMEOUT: 15,
+  AI_PROCESSOR_TIMEOUT: 60,
   RESPONSE_TIMEOUT: 10,
   EXPECTED_LAMBDA_COUNT: 5,
   EXPECTED_LAYER_COUNT: 1,

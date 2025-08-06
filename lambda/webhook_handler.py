@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import base64
 import boto3
 from datetime import datetime, timedelta, timezone
 from linebot.v3 import WebhookHandler
@@ -63,8 +64,12 @@ def strip_mentions(text):
     """Remove '@username' style mentions from text"""
     if not text:
         return text
+    
+    # Remove @mentions (handles both @username and @display_name formats)
+    # This pattern matches @ followed by any non-whitespace characters
     cleaned = re.sub(r"@\S+", "", text)
-    # collapse multiple spaces left after removal
+    
+    # Collapse multiple spaces left after removal and trim
     return re.sub(r"\s+", " ", cleaned).strip()
 
 def lambda_handler(event, context):
@@ -79,6 +84,15 @@ def lambda_handler(event, context):
         }
     
     body = event['body']
+    if event.get('isBase64Encoded'):
+        try:
+            body = base64.b64decode(body).decode('utf-8')
+        except Exception as e:
+            logger.error(f"Failed to decode base64 body: {e}")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'message': 'Invalid Body'})
+            }
     signature = headers.get('x-line-signature')
     
     try:
@@ -102,9 +116,25 @@ def handle_message(event):
     user_id = event.source.user_id
     user_message = event.message.text
     reply_token = event.reply_token
+    source_type = event.source.type
+    source_id = getattr(event.source, f"{source_type}_id", None)
 
-    # Check for forget command
-    if user_message.strip().lower() in ["/forget", "/忘れて"]:
+    # Check mentions when in group or room
+    if source_type in ("group", "room"):
+        mention = event.message.mention
+        if not mention:
+            logger.info("No mention found in group message; ignoring")
+            return
+        bot_id = get_bot_user_id()
+        if all(m.user_id != bot_id for m in mention.mentionees):
+            logger.info("Bot not mentioned; ignoring message")
+            return
+
+    # Strip mentions first (important for group chats)
+    sanitized_message = strip_mentions(user_message)
+    
+    # Check for forget command after stripping mentions
+    if sanitized_message.strip().lower() in ["/forget", "/忘れて"]:
         if ai_processor.delete_conversation_history(user_id):
             reply_text = "会話の履歴を削除しました。"
         else:
@@ -119,21 +149,6 @@ def handle_message(event):
                 )
             )
         return
-
-    sanitized_message = strip_mentions(user_message)
-    source_type = event.source.type
-    source_id = getattr(event.source, f"{source_type}_id", None)
-
-    # Check mentions when in group or room
-    if source_type in ("group", "room"):
-        mention = event.message.mention
-        if not mention:
-            logger.info("No mention found in group message; ignoring")
-            return
-        bot_id = get_bot_user_id()
-        if all(m.user_id != bot_id for m in mention.mentionees):
-            logger.info("Bot not mentioned; ignoring message")
-            return
     
     # No immediate response - will respond via Push API after processing
     
@@ -164,13 +179,18 @@ def get_conversation_context(user_id):
             ScanIndexForward=False,
             Limit=1
         )
+        logger.info(
+            "Retrieved %d conversation(s) from DynamoDB",
+            len(response.get("Items", [])),
+        )
         
         if response['Items']:
             conversation = response['Items'][0]
             
             # Check if conversation is still active (within 30 minutes)
             last_activity = datetime.fromisoformat(conversation['lastActivity'])
-            if datetime.utcnow() - last_activity < timedelta(minutes=30):
+            now = datetime.utcnow().replace(tzinfo=timezone.utc)
+            if now - last_activity < timedelta(minutes=30):
                 return conversation
         
         # Create new conversation
