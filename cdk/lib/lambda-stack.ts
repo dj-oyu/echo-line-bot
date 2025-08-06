@@ -148,6 +148,7 @@ export class LineEchoStack extends cdk.Stack {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
+        AI_BACKEND: process.env.AI_BACKEND || 'groq',
       },
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);

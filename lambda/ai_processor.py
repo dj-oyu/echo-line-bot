@@ -17,7 +17,7 @@ SAMBA_NOVA_API_KEY_NAME = os.getenv("SAMBA_NOVA_API_KEY_NAME")
 GROQ_API_KEY_NAME = os.getenv("GROQ_API_KEY_NAME")
 CONVERSATION_TABLE_NAME = os.getenv("CONVERSATION_TABLE_NAME")
 
-AI_SELECT = "groq"  # Change to "sambanova" to use SambaNova
+AI_SELECT = os.getenv("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")

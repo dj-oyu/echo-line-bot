@@ -10,7 +10,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 with patch.dict(os.environ, {
     'CONVERSATION_TABLE_NAME': 'test-table',
     'SAMBA_NOVA_API_KEY_NAME': 'test-samba-key',
-    'GROQ_API_KEY_NAME': 'test-groq-key'
+    'GROQ_API_KEY_NAME': 'test-groq-key',
+    'AI_BACKEND': 'groq'
 }):
     from ai_processor import delete_conversation_history
 
