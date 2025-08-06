@@ -128,9 +128,11 @@ jobs:
         aws secretsmanager create-secret --name LINE_CHANNEL_SECRET --secret-string '${{ secrets.CHANNEL_SECRET }}'
         aws secretsmanager update-secret --secret-id LINE_CHANNEL_ACCESS_TOKEN --secret-string '${{ secrets.CHANNEL_ACCESS_TOKEN }}' || 
         aws secretsmanager create-secret --name LINE_CHANNEL_ACCESS_TOKEN --secret-string '${{ secrets.CHANNEL_ACCESS_TOKEN }}'
-        aws secretsmanager update-secret --secret-id SAMBA_NOVA_API_KEY --secret-string '${{ secrets.SAMBA_NOVA_API_KEY }}' || 
+        aws secretsmanager update-secret --secret-id SAMBA_NOVA_API_KEY --secret-string '${{ secrets.SAMBA_NOVA_API_KEY }}' ||
         aws secretsmanager create-secret --name SAMBA_NOVA_API_KEY --secret-string '${{ secrets.SAMBA_NOVA_API_KEY }}'
-        aws secretsmanager update-secret --secret-id XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}' || 
+        aws secretsmanager update-secret --secret-id GROQ_API_KEY --secret-string '${{ secrets.GROQ_API_KEY }}' ||
+        aws secretsmanager create-secret --name GROQ_API_KEY --secret-string '${{ secrets.GROQ_API_KEY }}'
+        aws secretsmanager update-secret --secret-id XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}' ||
         aws secretsmanager create-secret --name XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}'
         
     - name: Deploy to AWS
