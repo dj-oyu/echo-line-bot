@@ -118,7 +118,7 @@ def handle_message(event):
     reply_token = event.reply_token
     source_type = event.source.type
     source_id = getattr(event.source, f"{source_type}_id", None)
-    quote_token = event.message.quoteToken
+    quote_token = getattr(event.message, 'quote_token', None)
 
     # Check mentions when in group or room
     if source_type in ("group", "room"):
@@ -243,7 +243,7 @@ def start_ai_processing(user_id, conversation_context, source_type, source_id, q
         
         # Add quote token if available for group/room messages
         if quote_token and source_type in ("group", "room"):
-            input_data['quoteToken'] = quote_token
+            input_data['quote_token'] = quote_token
         
         response = stepfunctions.start_execution(
             stateMachineArn=STEP_FUNCTION_ARN,

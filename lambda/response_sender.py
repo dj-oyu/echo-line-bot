@@ -66,7 +66,7 @@ def lambda_handler(event: dict, _context) -> dict:
         target_id = source_id if source_type in ("group", "room") else user_id
         
         # Get quote token if available for group/room messages
-        quote_token = event.get('quoteToken')
+        quote_token = getattr(event.message, 'quote_token', None)
         send_line_message(target_id, message_to_send, quote_token, source_type)
 
         # If it was a final response (from Grok), save it to the conversation history

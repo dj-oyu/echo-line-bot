@@ -152,7 +152,8 @@ def get_ai_response(messages: list) -> dict:
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "query": {"type": "string", "description": "検索クエリ"}
+                            "query": {"type": "string", "description": "検索クエリ"},
+                            "prompt": {"type": "string", "description": "検索結果をどのように使用するかの説明"},
                         },
                         "required": ["query"],
                     },
@@ -186,6 +187,7 @@ def get_ai_response(messages: list) -> dict:
             tool_call = message.tool_calls[0]
             if tool_call.function.name == "search_with_grok":
                 query = json.loads(tool_call.function.arguments).get("query")
+                prompt = json.loads(tool_call.function.arguments).get("prompt", "")
                 logger.info(
                     f"{backend_name} suggested tool call: search_with_grok with query: {query}"
                 )
@@ -193,6 +195,7 @@ def get_ai_response(messages: list) -> dict:
                     "hasToolCall": True,
                     "toolName": "search_with_grok",
                     "toolQuery": query,
+                    "toolPrompt": prompt,
                 }
 
         ai_response = message.content
