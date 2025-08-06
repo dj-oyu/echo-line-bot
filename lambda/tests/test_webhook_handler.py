@@ -110,10 +110,10 @@ class TestWebhookHandler(unittest.TestCase):
             }]
         }
         
-        # Mock datetime.fromisoformat
+        # Mock datetime.fromisoformat and now functions
         with patch('webhook_handler.datetime') as mock_dt:
             mock_dt.fromisoformat.return_value = active_time
-            mock_dt.utcnow.return_value = datetime.now(timezone.utc)
+            mock_dt.now.return_value = datetime.now(timezone.utc)
             
             result = get_conversation_context(user_id)
         
@@ -132,6 +132,7 @@ class TestWebhookHandler(unittest.TestCase):
         mock_event = Mock()
         mock_event.source.user_id = 'user123'
         mock_event.message.text = '@ボット /忘れて'
+        mock_event.message.quoteToken = 'quote_token_123'
         mock_event.reply_token = 'reply_token_123'
         mock_event.source.type = 'group'
         mock_event.source.group_id = 'group123'
@@ -255,7 +256,6 @@ class TestWebhookHandler(unittest.TestCase):
         mock_handle.assert_called_once()
         decoded_body = mock_handle.call_args[0][0]
         self.assertEqual(decoded_body, payload)
-
 
 if __name__ == '__main__':
     # Set required environment variables for testing

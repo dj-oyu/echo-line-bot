@@ -56,7 +56,10 @@ def lambda_handler(event: dict, _context) -> dict:
         
         # Send a fixed interim message
         interim_message = "なんやややこしい質問やな～ 今こびとさんに調べてきてもろとるから待っとき！"
-        send_line_message(target_id, interim_message)
+        
+        # Get quote token if available for group/room messages
+        quote_token = event.get('quoteToken')
+        send_line_message(target_id, interim_message, quote_token, source_type)
         
         # Pass the original event payload through to the next step
         return event
@@ -66,12 +69,14 @@ def lambda_handler(event: dict, _context) -> dict:
         # Propagate the error to stop the workflow
         raise
 
-def send_line_message(to_id: str, message: str) -> None:
+def send_line_message(to_id: str, message: str, quote_token: str = None, source_type: str = None) -> None:
     """Send message to a LINE destination using the Push API.
     
     Args:
         to_id: LINE user or group ID to send message to
         message: Message text to send
+        quote_token: Quote token for replying to a specific message
+        source_type: Source type (group, room, user)
         
     Raises:
         Exception: If message sending fails
@@ -79,10 +84,17 @@ def send_line_message(to_id: str, message: str) -> None:
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
+            
+            # Create text message with quote token if available (for group/room chats)
+            text_message = TextMessage(
+                text=message,
+                quoteToken=quote_token if quote_token and source_type in ("group", "room") else None
+            )
+            
             line_bot_api.push_message_with_http_info(
                 push_message_request=PushMessageRequest(
                     to=to_id,
-                    messages=[TextMessage(text=message)]
+                    messages=[text_message]
                 )
             )
         logger.info(f"Sent interim message to {to_id}: {message}")

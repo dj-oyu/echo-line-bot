@@ -118,6 +118,7 @@ def handle_message(event):
     reply_token = event.reply_token
     source_type = event.source.type
     source_id = getattr(event.source, f"{source_type}_id", None)
+    quote_token = event.message.quoteToken
 
     # Check mentions when in group or room
     if source_type in ("group", "room"):
@@ -132,7 +133,6 @@ def handle_message(event):
 
     # Strip mentions first (important for group chats)
     sanitized_message = strip_mentions(user_message)
-    
     # Check for forget command after stripping mentions
     if sanitized_message.strip().lower() in ["/forget", "/忘れて"]:
         if ai_processor.delete_conversation_history(user_id):
@@ -142,10 +142,17 @@ def handle_message(event):
         
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
+            
+            # Create text message with quote token if available (for group chats)
+            text_message = TextMessage(
+                text=reply_text,
+                quoteToken=quote_token if quote_token and source_type in ("group", "room") else None
+            )
+            
             line_bot_api.reply_message(
                 ReplyMessageRequest(
                     reply_token=reply_token,
-                    messages=[TextMessage(text=reply_text)]
+                    messages=[text_message]
                 )
             )
         return
@@ -166,8 +173,8 @@ def handle_message(event):
     # Save conversation context
     save_conversation_context(user_id, conversation_context)
     
-    # Start Step Functions workflow
-    start_ai_processing(user_id, conversation_context, source_type, source_id)
+    # Start Step Functions workflow with quote token
+    start_ai_processing(user_id, conversation_context, source_type, source_id, quote_token)
 
 def get_conversation_context(user_id):
     """Get existing conversation context or create new one"""
@@ -189,7 +196,7 @@ def get_conversation_context(user_id):
             
             # Check if conversation is still active (within 30 minutes)
             last_activity = datetime.fromisoformat(conversation['lastActivity'])
-            now = datetime.utcnow().replace(tzinfo=timezone.utc)
+            now = datetime.now(timezone.utc)
             if now - last_activity < timedelta(minutes=30):
                 return conversation
         
@@ -224,7 +231,7 @@ def save_conversation_context(user_id, conversation_context):
     except Exception as e:
         logger.error(f"Error saving conversation context: {e}")
 
-def start_ai_processing(user_id, conversation_context, source_type, source_id):
+def start_ai_processing(user_id, conversation_context, source_type, source_id, quote_token=None):
     """Start Step Functions workflow for AI processing"""
     try:
         input_data = {
@@ -233,6 +240,10 @@ def start_ai_processing(user_id, conversation_context, source_type, source_id):
             'sourceType': source_type,
             'sourceId': source_id,
         }
+        
+        # Add quote token if available for group/room messages
+        if quote_token and source_type in ("group", "room"):
+            input_data['quoteToken'] = quote_token
         
         response = stepfunctions.start_execution(
             stateMachineArn=STEP_FUNCTION_ARN,
