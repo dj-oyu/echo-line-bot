@@ -95,6 +95,7 @@ export class LineEchoStack extends cdk.Stack {
       lineChannelSecret: secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelSecret', 'LINE_CHANNEL_SECRET'),
       lineChannelAccessToken: secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN'),
       sambaNovaApiKey: secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY'),
+      groqApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'GroqApiKeySecret', 'GROQ_API_KEY'),
       xaiApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY'),
     };
   }
@@ -146,9 +147,12 @@ export class LineEchoStack extends cdk.Stack {
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
+        GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
+        AI_BACKEND: process.env.AI_BACKEND || 'groq',
       },
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);
+    secrets.groqApiKeySecret.grantRead(aiProcessorLambda);
 
     const interimResponseSenderLambda = new lambda.Function(this, 'InterimResponseSender', {
       ...baseConfig,
