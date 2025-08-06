@@ -139,7 +139,8 @@ def get_ai_response(messages: list) -> dict:
         Dict containing either tool call info or direct AI response
     """
     try:
-        logger.info(f"Calling SambaNova API with {len(messages)} messages")
+        backend_name = "SambaNova" if AI_SELECT == "sambanova" else "Groq"
+        logger.info(f"Calling {backend_name} API with {len(messages)} messages")
         api_messages = prepare_messages_for_api(messages)
 
         tools = [
@@ -186,7 +187,7 @@ def get_ai_response(messages: list) -> dict:
             if tool_call.function.name == "search_with_grok":
                 query = json.loads(tool_call.function.arguments).get("query")
                 logger.info(
-                    f"SambaNova suggested tool call: search_with_grok with query: {query}"
+                    f"{backend_name} suggested tool call: search_with_grok with query: {query}"
                 )
                 return {
                     "hasToolCall": True,
@@ -195,7 +196,7 @@ def get_ai_response(messages: list) -> dict:
                 }
 
         ai_response = message.content
-        logger.info(f"SambaNova API response received: {ai_response}")
+        logger.info(f"{backend_name} API response received: {ai_response}")
         return {"hasToolCall": False, "aiResponse": ai_response}
 
     except Exception as e:
