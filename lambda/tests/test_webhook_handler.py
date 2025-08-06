@@ -132,7 +132,7 @@ class TestWebhookHandler(unittest.TestCase):
         mock_event = Mock()
         mock_event.source.user_id = 'user123'
         mock_event.message.text = '@ボット /忘れて'
-        mock_event.message.quoteToken = 'quote_token_123'
+        mock_event.message.quote_token = 'quote_token_123'
         mock_event.reply_token = 'reply_token_123'
         mock_event.source.type = 'group'
         mock_event.source.group_id = 'group123'
