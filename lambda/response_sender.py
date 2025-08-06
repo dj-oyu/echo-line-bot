@@ -64,7 +64,10 @@ def lambda_handler(event: dict, _context) -> dict:
 
         # Determine the target ID for the push message
         target_id = source_id if source_type in ("group", "room") else user_id
-        send_line_message(target_id, message_to_send)
+        
+        # Get quote token if available for group/room messages
+        quote_token = event.get('quoteToken')
+        send_line_message(target_id, message_to_send, quote_token, source_type)
 
         # If it was a final response (from Grok), save it to the conversation history
         if 'grokResponse' in event:
@@ -89,12 +92,14 @@ def lambda_handler(event: dict, _context) -> dict:
             logger.error(f"Failed to send error message to user: {inner_e}")
         raise
 
-def send_line_message(to_id: str, message: str) -> None:
+def send_line_message(to_id: str, message: str, quote_token: str = None, source_type: str = None) -> None:
     """Send message to a LINE destination using the Push API.
     
     Args:
         to_id: LINE user or group ID to send message to
         message: Message text to send
+        quote_token: Quote token for replying to a specific message
+        source_type: Source type (group, room, user)
         
     Raises:
         Exception: If message sending fails
@@ -102,10 +107,17 @@ def send_line_message(to_id: str, message: str) -> None:
     try:
         with ApiClient(configuration) as api_client:
             line_bot_api = MessagingApi(api_client)
+            
+            # Create text message with quote token if available (for group/room chats)
+            text_message = TextMessage(
+                text=message,
+                quoteToken=quote_token if quote_token and source_type in ("group", "room") else None
+            )
+            
             line_bot_api.push_message_with_http_info(
                 push_message_request=PushMessageRequest(
                     to=to_id,
-                    messages=[TextMessage(text=message)]
+                    messages=[text_message]
                 )
             )
         logger.info(f"Sent message to {to_id}: {message}")
