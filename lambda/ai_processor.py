@@ -160,8 +160,8 @@ def get_ai_response(messages: list) -> dict:
             }
         ]
 
-        response = (
-            get_sambanova_client().chat.completions.create(
+        if AI_SELECT == "sambanova":
+            response = get_sambanova_client().chat.completions.create(
                 model="DeepSeek-V3-0324",
                 messages=api_messages,
                 temperature=0.7,
@@ -169,8 +169,8 @@ def get_ai_response(messages: list) -> dict:
                 tools=tools,
                 tool_choice="auto",
             )
-            if AI_SELECT == "sambanova"
-            else get_groq_client().chat.completions.create(
+        else:
+            response = get_groq_client().chat.completions.create(
                 model="openai/gpt-oss-20b",
                 messages=api_messages,
                 temperature=0.7,
@@ -178,7 +178,6 @@ def get_ai_response(messages: list) -> dict:
                 tools=tools,
                 tool_choice="auto",
             )
-        )
 
         message = response.choices[0].message
 
