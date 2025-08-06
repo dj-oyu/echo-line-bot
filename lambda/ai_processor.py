@@ -172,6 +172,7 @@ def get_ai_response(messages: list) -> dict:
         else:
             response = get_groq_client().chat.completions.create(
                 model="openai/gpt-oss-20b",
+                reasoning_effort="medium",
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,
@@ -305,8 +306,6 @@ def prepare_messages_for_api(messages: list) -> list:
 日本語で話しかけられたら関西弁で返答し、英語など他の言語で話しかけられたらその言語で返答してください。
 ただし、関西弁の温かみと親しみやすさを常に保ってください。
 """
-    if AI_SELECT == "groq":
-        system_prompt += "reasoning: medium"
     api_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
         api_messages.append(
