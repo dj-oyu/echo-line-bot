@@ -16,3 +16,8 @@ dependencies = [
 testpaths = [
     "lambda/tests",
 ]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1",
+]

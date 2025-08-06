@@ -6,7 +6,13 @@ import sys
 # Add the lambda directory to the python path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from ai_processor import delete_conversation_history
+# Mock environment variables before importing ai_processor
+with patch.dict(os.environ, {
+    'CONVERSATION_TABLE_NAME': 'test-table',
+    'SAMBA_NOVA_API_KEY_NAME': 'test-samba-key',
+    'GROQ_API_KEY_NAME': 'test-groq-key'
+}):
+    from ai_processor import delete_conversation_history
 
 class TestAiProcessor(unittest.TestCase):
 
