@@ -80,7 +80,7 @@ def get_groq_client() -> openai.OpenAI:
         groq_api_key = get_secret(GROQ_API_KEY_NAME)
         groq_client = openai.OpenAI(
             api_key=groq_api_key,
-            base_url="https://api.groq.com/v1",
+            base_url="https://api.groq.com/openai/v1",
         )
     return groq_client
 
