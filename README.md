@@ -102,16 +102,19 @@ cd echo-line-bot
 ### 2. 依存関係のインストール
 
 ```bash
-# CDK 依存関係のインストール（pnpm使用）
-cd cdk
-pnpm install
-
 # Python 依存関係のインストール（uv使用）
-cd ..
 uv sync
+
+# CDK 依存関係のインストール（pnpm使用）
+cd cdk && pnpm install && cd ..
 
 # Lambda Layer のビルド
 ./scripts/build-layer.sh
+```
+
+**クイックセットアップ（1コマンド）:**
+```bash
+uv sync && cd cdk && pnpm install && cd .. && ./scripts/build-layer.sh
 ```
 
 ### 3. AWS Secrets Manager での環境変数設定
