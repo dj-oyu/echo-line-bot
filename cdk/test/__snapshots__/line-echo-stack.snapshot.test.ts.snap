@@ -342,7 +342,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "158de82ace7468115e4cb2da0826098de217104e6f2d3f7c0b14f97bb0790d71.zip",
+          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
         },
         "Description": "Processes user messages using SambaNova AI",
         "Environment": {
@@ -901,7 +901,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "158de82ace7468115e4cb2da0826098de217104e6f2d3f7c0b14f97bb0790d71.zip",
+          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
         },
         "Description": "Processes queries using Grok AI for web search",
         "Environment": {
@@ -1010,7 +1010,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "158de82ace7468115e4cb2da0826098de217104e6f2d3f7c0b14f97bb0790d71.zip",
+          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
         },
         "Description": "Sends interim response while processing complex queries",
         "Environment": {
@@ -1119,7 +1119,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "158de82ace7468115e4cb2da0826098de217104e6f2d3f7c0b14f97bb0790d71.zip",
+          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
         },
         "Description": "Sends final response to LINE and saves conversation history",
         "Environment": {
@@ -1259,7 +1259,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "158de82ace7468115e4cb2da0826098de217104e6f2d3f7c0b14f97bb0790d71.zip",
+          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
         },
         "Description": "Handles LINE webhook events and initiates AI processing",
         "Environment": {
@@ -1269,6 +1269,8 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "CONVERSATION_TABLE_NAME": {
               "Ref": "ConversationHistoryD9612A4F",
             },
+            "GROQ_API_KEY_NAME": "GROQ_API_KEY",
+            "SAMBA_NOVA_API_KEY_NAME": "SAMBA_NOVA_API_KEY",
             "STEP_FUNCTION_ARN": {
               "Ref": "AIProcessingWorkflow70CB3890",
             },
@@ -2217,6 +2219,8 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "CHANNEL_ACCESS_TOKEN_NAME",
           "CHANNEL_SECRET_NAME",
           "CONVERSATION_TABLE_NAME",
+          "GROQ_API_KEY_NAME",
+          "SAMBA_NOVA_API_KEY_NAME",
           "STEP_FUNCTION_ARN",
         ],
       },
