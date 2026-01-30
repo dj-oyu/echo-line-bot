@@ -18,6 +18,8 @@ GROQ_API_KEY_NAME = os.environ["GROQ_API_KEY_NAME"]
 CONVERSATION_TABLE_NAME = os.environ["CONVERSATION_TABLE_NAME"]
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
+SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3-0324")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
@@ -166,7 +168,7 @@ def get_ai_response(messages: list) -> dict:
 
         if AI_SELECT == "sambanova":
             response = get_sambanova_client().chat.completions.create(  # type: ignore[call-overload]
-                model="DeepSeek-V3-0324",
+                model=SAMBANOVA_MODEL,
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,
@@ -175,7 +177,7 @@ def get_ai_response(messages: list) -> dict:
             )
         else:
             response = get_groq_client().chat.completions.create(  # type: ignore[call-overload]
-                model="openai/gpt-oss-20b",
+                model=GROQ_MODEL,
                 reasoning_effort="medium",
                 messages=api_messages,
                 temperature=0.7,
