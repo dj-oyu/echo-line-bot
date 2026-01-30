@@ -6,7 +6,7 @@ from typing import Any
 import boto3
 from xai_sdk import Client
 from xai_sdk.chat import user
-from xai_sdk.search import SearchParameters
+from xai_sdk.tools import web_search
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -80,10 +80,10 @@ def call_grok_api(query: str, prompt: str | None) -> str:
         # Initialize xAI client
         client = Client(api_key=get_xai_api_key())
 
-        # Create chat with search parameters
+        # Create chat with web search tool (Agent Tools API)
         chat = client.chat.create(
-            model="grok-4",
-            search_parameters=SearchParameters(mode="on"),
+            model="grok-4-1-fast",
+            tools=[web_search()],
         )
 
         # Create search prompt in Japanese
