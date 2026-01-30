@@ -36,9 +36,12 @@ uv export --no-dev --no-hashes | uv pip install --target "$LAYER_PYTHON_DIR" -r 
 # Remove unnecessary files to reduce layer size
 echo "🗑️ Removing unnecessary files..."
 find "$LAYER_PYTHON_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-find "$LAYER_PYTHON_DIR" -type d -name "*.dist-info" -exec rm -rf {} + 2>/dev/null || true
 find "$LAYER_PYTHON_DIR" -type f -name "*.pyc" -delete 2>/dev/null || true
 find "$LAYER_PYTHON_DIR" -type f -name "*.pyo" -delete 2>/dev/null || true
+
+# Remove dist-info directories EXCEPT opentelemetry (needed for entry_points discovery)
+echo "🗑️ Removing dist-info (preserving opentelemetry)..."
+find "$LAYER_PYTHON_DIR" -type d -name "*.dist-info" ! -name "opentelemetry*.dist-info" -exec rm -rf {} + 2>/dev/null || true
 
 # Show layer size
 LAYER_SIZE=$(du -sh "$LAYER_OUTPUT_DIR" | cut -f1)
