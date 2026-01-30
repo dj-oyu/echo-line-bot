@@ -31,7 +31,7 @@ cd "$PROJECT_ROOT"
 
 # Install dependencies using uv into the layer directory
 echo "📦 Installing Python dependencies with uv..."
-uv pip install --target "$LAYER_PYTHON_DIR" --requirement pyproject.toml
+uv export --no-dev --no-hashes | uv pip install --target "$LAYER_PYTHON_DIR" -r -
 
 # Remove unnecessary files to reduce layer size
 echo "🗑️ Removing unnecessary files..."
