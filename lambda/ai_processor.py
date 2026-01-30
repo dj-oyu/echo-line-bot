@@ -12,10 +12,10 @@ from boto3.dynamodb.conditions import Key
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# Environment variables
-SAMBA_NOVA_API_KEY_NAME = os.environ["SAMBA_NOVA_API_KEY_NAME"]
-GROQ_API_KEY_NAME = os.environ["GROQ_API_KEY_NAME"]
-CONVERSATION_TABLE_NAME = os.environ["CONVERSATION_TABLE_NAME"]
+# Environment variables (use get() to allow import from webhook_handler)
+SAMBA_NOVA_API_KEY_NAME = os.environ.get("SAMBA_NOVA_API_KEY_NAME", "")
+GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
+CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
 SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3-0324")
