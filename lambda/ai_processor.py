@@ -2,22 +2,24 @@ import json
 import logging
 import os
 import re
-import boto3
-from boto3.dynamodb.conditions import Key
-import openai
 from datetime import datetime, timezone
+
+import boto3
+import openai
 import pytz
-from typing import Dict, List
+from boto3.dynamodb.conditions import Key
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # Environment variables
-SAMBA_NOVA_API_KEY_NAME = os.getenv("SAMBA_NOVA_API_KEY_NAME")
-GROQ_API_KEY_NAME = os.getenv("GROQ_API_KEY_NAME")
-CONVERSATION_TABLE_NAME = os.getenv("CONVERSATION_TABLE_NAME")
+SAMBA_NOVA_API_KEY_NAME = os.environ["SAMBA_NOVA_API_KEY_NAME"]
+GROQ_API_KEY_NAME = os.environ["GROQ_API_KEY_NAME"]
+CONVERSATION_TABLE_NAME = os.environ["CONVERSATION_TABLE_NAME"]
 
-AI_SELECT = os.getenv("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
+AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
+SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3-0324")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
@@ -153,7 +155,10 @@ def get_ai_response(messages: list) -> dict:
                         "type": "object",
                         "properties": {
                             "query": {"type": "string", "description": "検索クエリ"},
-                            "prompt": {"type": "string", "description": "検索結果をどのように使用するかの説明"},
+                            "prompt": {
+                                "type": "string",
+                                "description": "検索結果をどのように使用するかの説明",
+                            },
                         },
                         "required": ["query"],
                     },
@@ -162,8 +167,8 @@ def get_ai_response(messages: list) -> dict:
         ]
 
         if AI_SELECT == "sambanova":
-            response = get_sambanova_client().chat.completions.create(
-                model="DeepSeek-V3-0324",
+            response = get_sambanova_client().chat.completions.create(  # type: ignore[call-overload]
+                model=SAMBANOVA_MODEL,
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,
@@ -171,8 +176,8 @@ def get_ai_response(messages: list) -> dict:
                 tool_choice="auto",
             )
         else:
-            response = get_groq_client().chat.completions.create(
-                model="openai/gpt-oss-20b",
+            response = get_groq_client().chat.completions.create(  # type: ignore[call-overload]
+                model=GROQ_MODEL,
                 reasoning_effort="medium",
                 messages=api_messages,
                 temperature=0.7,
@@ -311,9 +316,7 @@ def prepare_messages_for_api(messages: list) -> list:
 """
     api_messages = [{"role": "system", "content": system_prompt}]
     for msg in messages:
-        api_messages.append(
-            {"role": msg["role"], "content": strip_mentions(msg["content"])}
-        )
+        api_messages.append({"role": msg["role"], "content": strip_mentions(msg["content"])})
     return api_messages
 
 
@@ -344,9 +347,7 @@ def delete_conversation_history(user_id: str) -> bool:
     """
     try:
         # Query all items for the user
-        response = conversation_table.query(
-            KeyConditionExpression=Key("userId").eq(user_id)
-        )
+        response = conversation_table.query(KeyConditionExpression=Key("userId").eq(user_id))
 
         # Delete each item using only the partition key (userId)
         with conversation_table.batch_writer() as batch:
