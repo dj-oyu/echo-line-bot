@@ -1,7 +1,7 @@
 
-# xAI Grok-4 and Live Search API Integration
+# xAI Grok and Live Search API Integration
 
-xAIのGrok-4モデルとLive Search APIを統合することで、リアルタイムのWeb情報を活用して応答を生成する検索エージェントを実装できます。
+xAIのGrokモデルとLive Search APIを統合することで、リアルタイムのWeb情報を活用して応答を生成する検索エージェントを実装できます。
 
 ## Live Search API
 
@@ -13,13 +13,13 @@ Live Search機能を利用するには、APIリクエストに`search_parameters
 
 ### Pythonでの使用例 (langchain_xai)
 
-`langchain_xai`ライブラリを使用すると、Grok-4モデルとLive Search機能を簡単に利用できます。
+`langchain_xai`ライブラリを使用すると、GrokモデルとLive Search機能を簡単に利用できます。
 
 ```python
 from langchain_xai import ChatXAI
 
 llm = ChatXAI(
-    model="grok-4",
+    model="grok-4.3",
     search_parameters={
         "mode": "auto",
         # オプションのパラメータ例
@@ -30,9 +30,9 @@ llm = ChatXAI(
 )
 ```
 
-## Grok-4モデル
+## Grokモデル
 
-Grok-4は、xAIの最新の推論モデルであり、画像とテキストの両方の入力をサポートしています。
+`grok-4.3` は xAI の最新の汎用モデルで、エージェント的なツール呼び出しと指示追従に優れています。`<modelname>` エイリアスで最新の安定版を自動的に追従するため、本プロジェクトでも `grok-4.3` を使用します（旧モデル `grok-4-1-fast` 系は 2026-05-15 に廃止）。
 
 ## APIアクセスと料金
 

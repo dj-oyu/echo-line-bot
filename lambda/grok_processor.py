@@ -74,7 +74,7 @@ def call_grok_api(query: str, prompt: str | None) -> str:
         Response content from Grok API
     """
     try:
-        logger.info(f"Calling Grok-4 with query: {query}")
+        logger.info(f"Calling Grok with query: {query}")
         logger.info(f"Using prompt: {prompt if prompt else 'No prompt provided'}")
 
         # Initialize xAI client
@@ -82,7 +82,7 @@ def call_grok_api(query: str, prompt: str | None) -> str:
 
         # Create chat with web search tool (Agent Tools API)
         chat = client.chat.create(
-            model="grok-4-1-fast",
+            model="grok-4.3",
             tools=[web_search()],
         )
 
@@ -98,7 +98,7 @@ def call_grok_api(query: str, prompt: str | None) -> str:
         return str(response.content)
 
     except Exception as e:
-        logger.error(f"Error calling Grok-4 API: {e}")
+        logger.error(f"Error calling Grok API: {e}")
         return "ごめんやで～、こびとさんが情報見つけられへんかった...。もうちょっと簡単な言葉で聞いてみてくれる？"
 
 
@@ -112,7 +112,7 @@ def lambda_handler(event: dict, _context) -> dict:
 
     try:
         grok_response = call_grok_api(query, prompt)
-        logger.info(f"Grok-4 response received: {grok_response}")
+        logger.info(f"Grok response received: {grok_response}")
 
         # Return the response with all necessary context for the next lambda
         response_data = {
