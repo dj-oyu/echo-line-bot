@@ -95,6 +95,15 @@ def call_grok_api(query: str, prompt: str | None) -> str:
 
         # Get response
         response = chat.sample()
+
+        # Log web_search citations for observability; do not surface to the user.
+        try:
+            citations = list(response.citations) if response.citations else []
+            if citations:
+                logger.info("Grok web_search citations: %s", citations)
+        except (AttributeError, TypeError):
+            pass
+
         return str(response.content)
 
     except Exception as e:
