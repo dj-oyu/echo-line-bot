@@ -10,6 +10,7 @@ dependencies = [
     "boto3>=1.28.0",
     "pytz>=2023.3",
     "xai-sdk>=1.0.0",
+    "markdown-it-py>=3.0.0",
 ]
 
 [tool.pytest.ini_options]

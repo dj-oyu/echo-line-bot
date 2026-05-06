@@ -342,7 +342,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
+          "S3Key": "0d039f34fc0acdbbd009ee0fb385aa04f60e61bb84af00fcd520370be748557f.zip",
         },
         "Description": "Processes user messages using SambaNova AI",
         "Environment": {
@@ -540,7 +540,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "f385f7a3a39b764db843c44242e032762e0b28154f911995a63756a3a5e74fe1.zip",
+          "S3Key": "21b38d2dd4ea2746430c9da41a5005aca728ca15dccb7bc3b7e4546cf8485bf2.zip",
         },
         "Description": "Python dependencies for LINE bot Lambda functions",
       },
@@ -901,7 +901,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
+          "S3Key": "0d039f34fc0acdbbd009ee0fb385aa04f60e61bb84af00fcd520370be748557f.zip",
         },
         "Description": "Processes queries using Grok AI for web search",
         "Environment": {
@@ -1010,7 +1010,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
+          "S3Key": "0d039f34fc0acdbbd009ee0fb385aa04f60e61bb84af00fcd520370be748557f.zip",
         },
         "Description": "Sends interim response while processing complex queries",
         "Environment": {
@@ -1119,7 +1119,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
+          "S3Key": "0d039f34fc0acdbbd009ee0fb385aa04f60e61bb84af00fcd520370be748557f.zip",
         },
         "Description": "Sends final response to LINE and saves conversation history",
         "Environment": {
@@ -1259,7 +1259,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "S3Bucket": {
             "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
           },
-          "S3Key": "0ce1929e0930959a6c37d4fdc5828ef45fb3f71fffe1c7d391df926f2d424c5e.zip",
+          "S3Key": "0d039f34fc0acdbbd009ee0fb385aa04f60e61bb84af00fcd520370be748557f.zip",
         },
         "Description": "Handles LINE webhook events and initiates AI processing",
         "Environment": {

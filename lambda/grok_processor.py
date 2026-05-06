@@ -4,6 +4,7 @@ import os
 from typing import Any
 
 import boto3
+from markdown_to_line import format_with_citations, merge_citations, render_to_line
 from xai_sdk import Client
 from xai_sdk.chat import user
 from xai_sdk.tools import web_search
@@ -64,14 +65,17 @@ def get_xai_api_key() -> str:
     return XAI_API_KEY
 
 
-def call_grok_api(query: str, prompt: str | None) -> str:
+def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
     """Call xAI Grok API for search using official SDK.
 
     Args:
         query: Search query string
 
     Returns:
-        Response content from Grok API
+        Tuple of `(final_response, body_only)`. `final_response` is what is sent
+        to the user (body + citation footer). `body_only` is the same body
+        without the footer, to be saved into conversation history so that
+        future turns are not polluted by URL footers.
     """
     try:
         logger.info(f"Calling Grok with query: {query}")
@@ -96,19 +100,22 @@ def call_grok_api(query: str, prompt: str | None) -> str:
         # Get response
         response = chat.sample()
 
-        # Log web_search citations for observability; do not surface to the user.
         try:
-            citations = list(response.citations) if response.citations else []
-            if citations:
-                logger.info("Grok web_search citations: %s", citations)
+            api_citations = list(response.citations) if response.citations else []
         except (AttributeError, TypeError):
-            pass
+            api_citations = []
+        if api_citations:
+            logger.info("Grok web_search citations: %s", api_citations)
 
-        return str(response.content)
+        plain_body, body_urls = render_to_line(str(response.content or ""))
+        merged = merge_citations(api_citations, body_urls)
+        final = format_with_citations(plain_body, merged)
+        return final, plain_body
 
     except Exception as e:
         logger.error(f"Error calling Grok API: {e}")
-        return "ごめんやで～、こびとさんが情報見つけられへんかった...。もうちょっと簡単な言葉で聞いてみてくれる？"
+        fallback = "ごめんやで～、こびとさんが情報見つけられへんかった...。もうちょっと簡単な言葉で聞いてみてくれる？"
+        return fallback, fallback
 
 
 def lambda_handler(event: dict, _context) -> dict:
@@ -120,12 +127,15 @@ def lambda_handler(event: dict, _context) -> dict:
     prompt = event.get("toolPrompt", "")
 
     try:
-        grok_response = call_grok_api(query, prompt)
+        grok_response, grok_body = call_grok_api(query, prompt)
         logger.info(f"Grok response received: {grok_response}")
 
-        # Return the response with all necessary context for the next lambda
+        # `grokResponse` is sent to the user (body + citation footer).
+        # `grokBody` is saved into history without the footer so future LLM
+        # turns are not polluted by URL lists.
         response_data = {
             "grokResponse": grok_response,
+            "grokBody": grok_body,
             "userId": event.get("userId"),
             "conversationContext": event.get("conversationContext"),
             "sourceType": event.get("sourceType"),
@@ -140,9 +150,10 @@ def lambda_handler(event: dict, _context) -> dict:
 
     except Exception as e:
         logger.error(f"Error in Grok processor: {e}")
-        # Return a user-friendly error message with context
+        fallback = "ごめんやで〜、こびとさんが情報見つけられへんかったわ...。もうちょっと簡単な言葉で聞いてみてくれる？"
         error_response = {
-            "grokResponse": "ごめんやで〜、こびとさんが情報見つけられへんかったわ...。もうちょっと簡単な言葉で聞いてみてくれる？",
+            "grokResponse": fallback,
+            "grokBody": fallback,
             "userId": event.get("userId"),
             "conversationContext": event.get("conversationContext"),
             "sourceType": event.get("sourceType"),

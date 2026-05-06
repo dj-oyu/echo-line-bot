@@ -73,13 +73,16 @@ def lambda_handler(event: dict, _context) -> dict:
         quote_token: str | None = event.get("quote_token")
         send_line_message(target_id, message_to_send, quote_token, source_type)
 
-        # If it was a final response (from Grok), save it to the conversation history
+        # If it was a final response (from Grok), save it to the conversation history.
+        # Save the body without the citation footer so future LLM turns are not
+        # polluted by URL lists.
         if "grokResponse" in event:
             conversation_context = event["conversationContext"]
+            history_content = event.get("grokBody") or message_to_send
             conversation_context["messages"].append(
                 {
                     "role": "assistant",
-                    "content": message_to_send,
+                    "content": history_content,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 }
             )
