@@ -4,23 +4,27 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a LINE bot echo application with AWS CDK infrastructure. The bot receives messages from LINE and replies with the same message text.
+This is a LINE bot powered by SambaNova AI (DeepSeek-V3-0324) with AWS CDK infrastructure. The bot ("あいちゃん") receives messages from LINE users and replies with AI-generated responses in Kansai dialect.
 
 ## Architecture
 
-The project has a two-tier architecture:
+The project uses a multi-Lambda asynchronous architecture with Step Functions:
 
-1. **Lambda Function** (`lambda/main.py`): Python 3.11 Lambda that handles LINE webhook events using the LINE Bot SDK v3
-2. **CDK Infrastructure** (`cdk/`): TypeScript CDK stack that deploys the Lambda with API Gateway and manages dependencies
+1. **Webhook Handler** (`lambda/webhook_handler.py`): Validates LINE signatures, stores conversation context in DynamoDB, and kicks off Step Functions workflow
+2. **AI Processor** (`lambda/ai_processor.py`): Calls SambaNova API with full conversation history, updates DynamoDB
+3. **Response Sender** (`lambda/response_sender.py`): Sends the AI response back to the LINE user via Push API
+4. **CDK Infrastructure** (`cdk/`): TypeScript CDK stack that deploys all resources
 
 ### Key Components
 
 - **LineEchoStack** (`cdk/lib/lambda-stack.ts`): Main infrastructure stack that creates:
-  - Lambda function with Python 3.11 runtime
-  - Lambda layer for line-bot-sdk dependencies
-  - API Gateway REST API endpoint
-  - Environment variables for LINE credentials
-- **Lambda Handler** (`lambda/main.py`): Processes LINE webhook events and echoes text messages back
+  - DynamoDB table (`line-bot-conversations`) for conversation history with 24h TTL
+  - Lambda layer for `line-bot-sdk`, `openai`, `boto3`, `pytz` dependencies
+  - `webhookHandler` Lambda (10s timeout) — receives LINE events
+  - `aiProcessor` Lambda (60s timeout) — calls SambaNova API
+  - `responseSender` Lambda (10s timeout) — sends Push messages to LINE
+  - Step Functions state machine (`AIProcessingWorkflow`) chaining AI → Send
+  - API Gateway REST API endpoint connected to `webhookHandler`
 
 ## Development Commands
 
@@ -47,22 +51,26 @@ uv sync                # Install Python dependencies
 The CDK stack reads environment variables from `.env.local`:
 - `CHANNEL_ACCESS_TOKEN`: LINE Bot channel access token
 - `CHANNEL_SECRET`: LINE Bot channel secret
+- `SAMBA_NOVA_API_KEY`: SambaNova Cloud API key
 
-These are passed to the Lambda function as environment variables during deployment.
+These are passed to the Lambda functions as environment variables during deployment.
 
 ## Deployment
 
-1. Ensure `.env.local` contains valid LINE credentials
+1. Ensure `.env.local` contains all three credentials above
 2. Deploy the stack: `cd cdk && npx cdk deploy`
 3. The output will show the API Gateway URL to configure as your LINE webhook endpoint
 
 ## Code Structure
 
-- `lambda/main.py`: Single-file Lambda handler with webhook processing
+- `lambda/webhook_handler.py`: Validates LINE webhook, stores context in DynamoDB, starts Step Functions
+- `lambda/ai_processor.py`: Calls SambaNova API, manages conversation history, returns AI response
+- `lambda/response_sender.py`: Sends AI response to LINE user via Push API
+- `lambda/main.py`: Legacy single-file handler (not deployed, kept for reference)
 - `cdk/lib/lambda-stack.ts`: Infrastructure definition using CDK constructs
 - `cdk/bin/cdk.ts`: CDK app entry point
 - `pyproject.toml`: Python dependencies and project metadata
-- `.env.local`: Environment variables for LINE credentials (not in git)
+- `.env.local`: Environment variables for LINE and SambaNova credentials (not in git)
 
 ## Testing
 
