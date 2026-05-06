@@ -8,6 +8,7 @@ import boto3
 import openai
 import pytz
 from boto3.dynamodb.conditions import Key
+from markdown_to_line import render_to_line
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -203,9 +204,10 @@ def get_ai_response(messages: list) -> dict:
                     "toolPrompt": prompt,
                 }
 
-        ai_response = message.content
+        ai_response = message.content or ""
         logger.info(f"{backend_name} API response received: {ai_response}")
-        return {"hasToolCall": False, "aiResponse": ai_response}
+        plain, _ = render_to_line(ai_response)
+        return {"hasToolCall": False, "aiResponse": plain}
 
     except Exception as e:
         logger.error(f"Error calling SambaNova API: {e}")

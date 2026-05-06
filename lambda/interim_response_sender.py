@@ -8,6 +8,7 @@ from linebot.v3.messaging import (
     Configuration,
     MessagingApi,
     PushMessageRequest,
+    ShowLoadingAnimationRequest,
     TextMessage,
 )
 
@@ -62,6 +63,11 @@ def lambda_handler(event: dict, _context) -> dict:
             "なんやややこしい質問やな～ 今こびとさんに調べてきてもろとるから待っとき！"
         )
 
+        # Show loading dots first (1-on-1 only) so the order in chat is:
+        # typing indicator → interim text → final answer.
+        if source_type not in ("group", "room"):
+            show_loading(user_id)
+
         # Get quote token if available for group/room messages
         quote_token: str | None = event.get("quote_token")
         send_line_message(target_id, interim_message, quote_token, source_type)
@@ -73,6 +79,24 @@ def lambda_handler(event: dict, _context) -> dict:
         logger.error(f"Error in interim response sender: {e}")
         # Propagate the error to stop the workflow
         raise
+
+
+def show_loading(user_id: str, seconds: int = 60) -> None:
+    """Show LINE typing-style loading animation for a 1-on-1 chat.
+
+    Best-effort: any failure is logged and swallowed so the workflow proceeds.
+    """
+    try:
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+            line_bot_api.show_loading_animation(
+                show_loading_animation_request=ShowLoadingAnimationRequest(
+                    chatId=user_id, loadingSeconds=seconds
+                )
+            )
+        logger.info("Showed loading animation for %s (%ds)", user_id, seconds)
+    except Exception as e:
+        logger.warning("Failed to show loading animation: %s", e)
 
 
 def send_line_message(
