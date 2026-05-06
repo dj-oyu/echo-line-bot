@@ -1,0 +1,15 @@
+# Global code owners
+* @dj-oyu
+
+# Infrastructure code
+/cdk/ @dj-oyu
+/.github/ @dj-oyu
+
+# Lambda functions  
+/lambda/ @dj-oyu
+
+# Configuration files
+pyproject.toml @dj-oyu
+.env.example @dj-oyu
+README.md @dj-oyu
+CLAUDE.md @dj-oyu

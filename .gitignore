@@ -114,3 +114,6 @@ npm-debug.log
 yarn-error.log
 package-lock.json
 cdk.out/
+
+# Lambda Layer build output
+lambda/layer-dist/
