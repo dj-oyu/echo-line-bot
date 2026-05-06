@@ -170,6 +170,10 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
 
+    // Note: observed memory usage ~110/128 MB on long Grok responses
+    // (xai_sdk + long response body + markdown-it AST). If OOM occurs,
+    // bump memorySize to 256 here. Cost impact is negligible since billed
+    // duration often shrinks proportionally with more memory.
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
       ...baseConfig,
       handler: 'grok_processor.lambda_handler',
