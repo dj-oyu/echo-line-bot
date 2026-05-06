@@ -10,7 +10,7 @@ The bot ("あいちゃん") responds in Kansai dialect using a multi-Lambda asyn
 ## Prerequisites
 
 - Node.js 18+
-- Python 3.11+
+- Python 3.12+
 - [uv](https://github.com/astral-sh/uv)
 - AWS CLI configured
 - LINE Developer account
@@ -20,7 +20,7 @@ The bot ("あいちゃん") responds in Kansai dialect using a multi-Lambda asyn
 
 1. Copy and fill credentials:
    ```bash
-   cp .env.local.example .env.local
+   cp .env.example .env.local
    # edit .env.local with CHANNEL_ACCESS_TOKEN, CHANNEL_SECRET, SAMBA_NOVA_API_KEY
    ```
 
