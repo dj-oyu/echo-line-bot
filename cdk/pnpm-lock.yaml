@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       aws-cdk-lib:
-        specifier: 2.202.0
-        version: 2.202.0(constructs@10.4.5)
+        specifier: 2.260.0
+        version: 2.260.0(constructs@10.4.5)
       constructs:
         specifier: ^10.4.5
         version: 10.4.5
@@ -45,14 +45,14 @@ importers:
 
 packages:
 
-  '@aws-cdk/asset-awscli-v1@2.2.240':
-    resolution: {integrity: sha512-Ry5yvGVf8s7j1Gf1aBFs0mBnWzRkkRtgSVpRGkDWXvZoPbRODAH33S1mAxkETNb+dNnTPGE2Gvws0XbhpJ6RzA==}
+  '@aws-cdk/asset-awscli-v1@2.2.282':
+    resolution: {integrity: sha512-7hKMi5tTxDcKGIMIOq14PnY0GBcugW33Uh/2YHDZiEwSxLeFOCYBwhR+BFXONb/EJeVI3RETFgailNZbkcKF6g==}
 
-  '@aws-cdk/asset-node-proxy-agent-v6@2.1.0':
-    resolution: {integrity: sha512-7bY3J8GCVxLupn/kNmpPc5VJz8grx+4RKfnnJiO1LG+uxkZfANZG3RMHhE+qQxxwkyQ9/MfPtTpf748UhR425A==}
+  '@aws-cdk/asset-node-proxy-agent-v6@2.1.2':
+    resolution: {integrity: sha512-pDiuqH+qY3zM9lhhLjbKJ1tnKOHzQ2V4Wr/3qsxyKeKAkuPMI/BVGvZG1PbrikUw949cGVTfVEt4ETKKYnrj0Q==}
 
-  '@aws-cdk/cloud-assembly-schema@44.9.0':
-    resolution: {integrity: sha512-zQ/CwW/CZ3Zcf2vdukBCHbZi8wwYuoVIRU7w6dWS7Y7wPuq7iWTWwQyujvH5YlDVMyH4mrgYa3f1lV2etTZLVQ==}
+  '@aws-cdk/cloud-assembly-schema@54.14.0':
+    resolution: {integrity: sha512-JCZCzgp3SuXQVljaKqXnttHzcezEHt9Ag/YipK0XwUFD+Iz2T4jY7gUc3pA25Uq6pzY2n9DvO/nEU++dPXW4Rw==}
     engines: {node: '>= 18.0.0'}
     bundledDependencies:
       - jsonschema
@@ -415,13 +415,14 @@ packages:
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
 
-  aws-cdk-lib@2.202.0:
-    resolution: {integrity: sha512-JDycQoE8AxUAeCFXFoCx6FGvR78e6W9zYxPgmfW/uPPbntyNCXXBqwyAYo17RGS/lr0RO3zqD/oCBZSNU2e/Yg==}
-    engines: {node: '>= 14.15.0'}
+  aws-cdk-lib@2.260.0:
+    resolution: {integrity: sha512-2PPG+hbPDot8+ibkb5Jl9y3OY5rBE6TFwjzOi+yEyU4ZG6u8bM4DDKhhBi/S20NqqSFDso9rH1txVJAdwXNiuQ==}
+    engines: {node: '>= 20.0.0'}
     peerDependencies:
-      constructs: ^10.0.0
+      constructs: ^10.5.0
     bundledDependencies:
       - '@balena/dockerignore'
+      - '@aws-cdk/cloud-assembly-api'
       - case
       - fs-extra
       - ignore
@@ -684,7 +685,7 @@ packages:
 
   glob@7.2.3:
     resolution: {integrity: sha512-nFR0zLpU2YCaRxwoCJvL6UvCH2JFyFVIvwTLsIf21AuHlMskA1hhTdk+LlYJtOlYt9v6dvszD2BGRqBL+iQK9Q==}
-    deprecated: Glob versions prior to v9 are no longer supported
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
@@ -1301,11 +1302,11 @@ packages:
 
 snapshots:
 
-  '@aws-cdk/asset-awscli-v1@2.2.240': {}
+  '@aws-cdk/asset-awscli-v1@2.2.282': {}
 
-  '@aws-cdk/asset-node-proxy-agent-v6@2.1.0': {}
+  '@aws-cdk/asset-node-proxy-agent-v6@2.1.2': {}
 
-  '@aws-cdk/cloud-assembly-schema@44.9.0': {}
+  '@aws-cdk/cloud-assembly-schema@54.14.0': {}
 
   '@babel/code-frame@7.28.6':
     dependencies:
@@ -1795,11 +1796,11 @@ snapshots:
     dependencies:
       sprintf-js: 1.0.3
 
-  aws-cdk-lib@2.202.0(constructs@10.4.5):
+  aws-cdk-lib@2.260.0(constructs@10.4.5):
     dependencies:
-      '@aws-cdk/asset-awscli-v1': 2.2.240
-      '@aws-cdk/asset-node-proxy-agent-v6': 2.1.0
-      '@aws-cdk/cloud-assembly-schema': 44.9.0
+      '@aws-cdk/asset-awscli-v1': 2.2.282
+      '@aws-cdk/asset-node-proxy-agent-v6': 2.1.2
+      '@aws-cdk/cloud-assembly-schema': 54.14.0
       constructs: 10.4.5
 
   aws-cdk@2.1020.0:
