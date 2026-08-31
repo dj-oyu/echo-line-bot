@@ -8,16 +8,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
-/**
- * Python 3.14 runtime.
- *
- * aws-cdk-lib 2.202.0 only ships constants up to PYTHON_3_13, so the runtime
- * is declared by name. Replace with lambda.Runtime.PYTHON_3_14 once the CDK
- * dependency is upgraded.
- */
-const PYTHON_RUNTIME = new lambda.Runtime('python3.14', lambda.RuntimeFamily.PYTHON, {
-  supportsInlineCode: true,
-});
+const PYTHON_RUNTIME = lambda.Runtime.PYTHON_3_14;
 
 /**
  * Paths excluded from the Lambda function asset.
