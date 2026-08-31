@@ -73,7 +73,7 @@ describe('LINE Echo Stack', () => {
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'webhook_handler.lambda_handler',
-        Runtime: 'python3.12',
+        Runtime: 'python3.14',
         Description: 'Handles LINE webhook events and initiates AI processing',
         // Default timeout is 3 seconds, which is well within LINE's 5-second limit
         Timeout: Match.absent() // Uses CDK default of 3 seconds
@@ -87,7 +87,7 @@ describe('LINE Echo Stack', () => {
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'ai_processor.lambda_handler',
-        Runtime: 'python3.12',
+        Runtime: 'python3.14',
         Description: 'Processes user messages using SambaNova AI',
         Timeout: 60
       });
@@ -100,7 +100,7 @@ describe('LINE Echo Stack', () => {
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'grok_processor.lambda_handler',
-        Runtime: 'python3.12',
+        Runtime: 'python3.14',
         Description: 'Processes queries using Grok AI for web search',
         Timeout: 180
       });
@@ -113,14 +113,14 @@ describe('LINE Echo Stack', () => {
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'response_sender.lambda_handler',
-        Runtime: 'python3.12',
+        Runtime: 'python3.14',
         Description: 'Sends final response to LINE and saves conversation history',
         Timeout: 10
       });
 
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'interim_response_sender.lambda_handler',
-        Runtime: 'python3.12',
+        Runtime: 'python3.14',
         Description: 'Sends interim response while processing complex queries',
         Timeout: 10
       });
@@ -129,7 +129,7 @@ describe('LINE Echo Stack', () => {
     test('should ensure all Lambda functions use consistent Python runtime', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
-      // Then: All Lambda functions should use Python 3.12 for consistency
+      // Then: All Lambda functions should use Python 3.14 for consistency
       
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
       const functionCount = Object.keys(lambdaFunctions).length;
@@ -137,7 +137,7 @@ describe('LINE Echo Stack', () => {
       expect(functionCount).toBe(5);
       
       Object.values(lambdaFunctions).forEach((func: any) => {
-        expect(func.Properties.Runtime).toBe('python3.12');
+        expect(func.Properties.Runtime).toBe('python3.14');
       });
     });
 
@@ -426,13 +426,13 @@ describe('LINE Echo Stack', () => {
   });
 
   describe('Dependencies Layer Configuration', () => {
-    test('should create layer with Python 3.12 compatibility', () => {
+    test('should create layer with Python 3.14 compatibility', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
-      // Then: Dependencies layer should be compatible with Python 3.12
+      // Then: Dependencies layer should be compatible with Python 3.14
       
       template.hasResourceProperties('AWS::Lambda::LayerVersion', {
-        CompatibleRuntimes: ['python3.12'],
+        CompatibleRuntimes: ['python3.14'],
         Description: 'Python dependencies for LINE bot Lambda functions'
       });
     });

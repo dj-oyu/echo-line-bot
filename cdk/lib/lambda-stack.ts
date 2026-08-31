@@ -9,6 +9,28 @@ import * as path from 'path';
 import { Construct } from 'constructs';
 
 /**
+ * Python 3.14 runtime.
+ *
+ * aws-cdk-lib 2.202.0 only ships constants up to PYTHON_3_13, so the runtime
+ * is declared by name. Replace with lambda.Runtime.PYTHON_3_14 once the CDK
+ * dependency is upgraded.
+ */
+const PYTHON_RUNTIME = new lambda.Runtime('python3.14', lambda.RuntimeFamily.PYTHON, {
+  supportsInlineCode: true,
+});
+
+/**
+ * Paths excluded from the Lambda function asset.
+ *
+ * `layer-dist` holds the dependency layer's contents, which are already
+ * mounted at /opt/python by the layer itself. Bundling them into every
+ * function package too made each package 33 MB instead of ~50 KB, slowing
+ * cold starts and eating into the 250 MB unzipped function+layers limit.
+ * Excluding tests and caches also keeps the asset hash stable across machines.
+ */
+const FUNCTION_ASSET_EXCLUDES = ['layer-dist', 'tests', '**/__pycache__'];
+
+/**
  * LINE Echo Bot Stack
  * 
  * This stack creates a serverless LINE bot with AI processing capabilities using:
@@ -106,7 +128,7 @@ export class LineEchoStack extends cdk.Stack {
   private createDependenciesLayer(): lambda.LayerVersion {
     return new lambda.LayerVersion(this, 'DependenciesLayer', {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
-      compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
+      compatibleRuntimes: [PYTHON_RUNTIME],
       description: 'Python dependencies for LINE bot Lambda functions',
     });
   }
@@ -120,8 +142,10 @@ export class LineEchoStack extends cdk.Stack {
     dependenciesLayer: lambda.LayerVersion
   ) {
     const baseConfig = {
-      runtime: lambda.Runtime.PYTHON_3_12,
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
+      runtime: PYTHON_RUNTIME,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda'), {
+        exclude: FUNCTION_ASSET_EXCLUDES,
+      }),
       layers: [dependenciesLayer],
     };
 
@@ -175,14 +199,16 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
 
-    // Note: observed memory usage ~110/128 MB on long Grok responses
-    // (xai_sdk + long response body + markdown-it AST). If OOM occurs,
-    // bump memorySize to 256 here. Cost impact is negligible since billed
-    // duration often shrinks proportionally with more memory.
+    // Observed ~110/128 MB on long Grok responses (xai_sdk + long response
+    // body + markdown-it AST), so the default 128 MB was one long answer away
+    // from OOM. Lambda also scales CPU with memory, so 512 MB both removes the
+    // headroom problem and cuts import/render time. Billed duration shrinks
+    // roughly in proportion, making the cost impact close to neutral.
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
       ...baseConfig,
       handler: 'grok_processor.lambda_handler',
       description: 'Processes queries using Grok AI for web search',
+      memorySize: 512,
       timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,

@@ -60,7 +60,7 @@ export class TestDataFactory {
       expectedFunctions: [
         {
           handler: 'webhook_handler.lambda_handler',
-          runtime: 'python3.12',
+          runtime: 'python3.14',
           description: 'Handles LINE webhook events and initiates AI processing',
           timeout: 3, // Default timeout
           requiresConversationTable: true,
@@ -69,7 +69,7 @@ export class TestDataFactory {
         },
         {
           handler: 'ai_processor.lambda_handler',
-          runtime: 'python3.12',
+          runtime: 'python3.14',
           description: 'Processes user messages using SambaNova AI',
           timeout: 60,
           requiresConversationTable: true,
@@ -77,21 +77,21 @@ export class TestDataFactory {
         },
         {
           handler: 'interim_response_sender.lambda_handler',
-          runtime: 'python3.12',
+          runtime: 'python3.14',
           description: 'Sends interim response while processing complex queries',
           timeout: 10,
           requiresLineCredentials: true
         },
         {
           handler: 'grok_processor.lambda_handler',
-          runtime: 'python3.12',
+          runtime: 'python3.14',
           description: 'Processes queries using Grok AI for web search',
           timeout: 180,
           requiresXaiCredentials: true
         },
         {
           handler: 'response_sender.lambda_handler',
-          runtime: 'python3.12',
+          runtime: 'python3.14',
           description: 'Sends final response to LINE and saves conversation history',
           timeout: 10,
           requiresConversationTable: true,
@@ -395,7 +395,7 @@ export class TestMatchers {
  * Test constants for consistent testing
  */
 export const TEST_CONSTANTS = {
-  LAMBDA_RUNTIME: 'python3.12',
+  LAMBDA_RUNTIME: 'python3.14',
   DYNAMO_TABLE_NAME: 'line-bot-conversations',
   STEP_FUNCTIONS_TIMEOUT: 300,
   DEFAULT_LAMBDA_TIMEOUT: 3,
