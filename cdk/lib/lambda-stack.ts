@@ -198,17 +198,20 @@ export class LineEchoStack extends cdk.Stack {
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
         XAI_MODEL: process.env.XAI_MODEL || 'grok-4.6',
+        // This stage now delivers the answer and records it
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
+        CONVERSATION_TABLE_NAME: conversationTable.tableName,
       },
     });
     secrets.xaiApiKeySecret.grantRead(grokProcessorLambda);
+    secrets.lineChannelAccessToken.grantRead(grokProcessorLambda);
 
     const responseSenderLambda = new lambda.Function(this, 'ResponseSender', {
       ...baseConfig,
       handler: 'response_sender.lambda_handler',
-      description: 'Sends final response to LINE and saves conversation history',
+      description: 'Notifies the user when a stage failed before it could reply',
       timeout: cdk.Duration.seconds(10),
       environment: {
-        CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
       },
     });
@@ -231,7 +234,7 @@ export class LineEchoStack extends cdk.Stack {
   ): void {
     conversationTable.grantReadWriteData(lambdaFunctions.webhookLambda);
     conversationTable.grantReadWriteData(lambdaFunctions.aiProcessorLambda);
-    conversationTable.grantReadWriteData(lambdaFunctions.responseSenderLambda);
+    conversationTable.grantReadWriteData(lambdaFunctions.grokProcessorLambda);
   }
 
   /**
@@ -246,28 +249,31 @@ export class LineEchoStack extends cdk.Stack {
       resultSelector: { 'Payload.$': '$.Payload' },
     });
 
-    // Grok's result overwrites the LLM result so both branches converge on one
-    // send state: response_sender already reads `grokResponse or aiResponse`.
+    // Reached only through a Catch: the stage that owed the user a reply died
+    // before sending one. Its cold start lands on the failure path only.
+    const notifyFailureTask = new stepfunctionsTasks.LambdaInvoke(this, 'NotifyFailure', {
+      lambdaFunction: lambdaFunctions.responseSenderLambda,
+    });
+
+    processAiTask.addCatch(notifyFailureTask, { resultPath: '$.error' });
+
     const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
       lambdaFunction: lambdaFunctions.grokProcessorLambda,
       inputPath: '$.aiProcessorResult.Payload',
-      resultPath: '$.aiProcessorResult',
+      resultPath: '$.grokProcessorResult',
       resultSelector: { 'Payload.$': '$.Payload' },
     });
-
-    const sendResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendResponse', {
-      lambdaFunction: lambdaFunctions.responseSenderLambda,
-      inputPath: '$.aiProcessorResult.Payload',
-    });
+    processWithGrokTask.addCatch(notifyFailureTask, { resultPath: '$.error' });
 
     // The Choice stays: it is what keeps an ordinary message out of a ~60 s web
     // search. It costs nothing — the measured transition is 0.00 s.
+    // Each branch ends at the stage that delivers the message.
     const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
       .when(
         stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-        processWithGrokTask.next(sendResponseTask)
+        processWithGrokTask
       )
-      .otherwise(sendResponseTask);
+      .otherwise(new stepfunctions.Succeed(this, 'AnsweredDirectly'));
 
     return new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
       definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),

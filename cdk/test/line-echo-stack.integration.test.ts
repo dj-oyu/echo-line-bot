@@ -84,7 +84,9 @@ describe('LINE Echo Stack - Integration Tests', () => {
       // Then: Conversation-aware functions should have DynamoDB table name and permissions
       
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
-      const conversationFunctions = ['webhook_handler', 'ai_processor', 'response_sender'];
+      // response_sender only notifies failures now; grok_processor records the
+      // answer it delivers, so it took over the table access.
+      const conversationFunctions = ['webhook_handler', 'ai_processor', 'grok_processor'];
       
       conversationFunctions.forEach(handlerName => {
         const func = Object.values(lambdaFunctions).find((f: any) => 

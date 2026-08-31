@@ -85,9 +85,8 @@ export class TestDataFactory {
         {
           handler: 'response_sender.lambda_handler',
           runtime: 'python3.14',
-          description: 'Sends final response to LINE and saves conversation history',
+          description: 'Notifies the user when a stage failed before it could reply',
           timeout: 10,
-          requiresConversationTable: true,
           requiresLineCredentials: true
         }
       ]

@@ -1,9 +1,8 @@
 import json
 import logging
 import os
-from typing import Any
 
-import boto3
+import line_messaging
 from markdown_to_line import format_with_citations, merge_citations, render_to_line
 from xai_sdk import Client
 from xai_sdk.chat import user
@@ -17,32 +16,6 @@ XAI_API_KEY_SECRET_NAME = os.environ["XAI_API_KEY_SECRET_NAME"]
 # Named XAI_MODEL rather than GROK_MODEL: the latter is one letter from the
 # ai_processor's GROQ_MODEL, and swapping those two values 400s every request.
 XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.6")
-
-# AWS clients
-secretsmanager = boto3.client("secretsmanager")
-
-
-def get_secret(secret_name: str) -> dict[str, Any]:
-    """Get secret value from AWS Secrets Manager.
-
-    Args:
-        secret_name: Name of the secret to retrieve
-
-    Returns:
-        The secret value as a dictionary
-
-    Raises:
-        Exception: If secret retrieval fails
-    """
-    try:
-        response = secretsmanager.get_secret_value(SecretId=secret_name)
-        secret_string = response["SecretString"]
-        result: dict[str, Any] = json.loads(secret_string)
-        return result
-    except Exception as e:
-        logger.error(f"Error retrieving secret {secret_name}: {e}")
-        raise
-
 
 # xAI client (lazy initialization)
 XAI_API_KEY = None
@@ -61,7 +34,7 @@ def get_xai_api_key() -> str:
     global XAI_API_KEY
     if XAI_API_KEY is None:
         try:
-            xai_api_key_data = get_secret(XAI_API_KEY_SECRET_NAME)
+            xai_api_key_data = line_messaging.get_secret_json(XAI_API_KEY_SECRET_NAME)
             XAI_API_KEY = str(xai_api_key_data["XAI_API_KEY"])
         except Exception as e:
             logger.error(f"Error retrieving xAI API key: {e}")
@@ -131,7 +104,7 @@ def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
     except Exception as e:
         logger.error(f"Error calling Grok API: {e}")
         fallback = "ごめんやで～、こびとさんが情報見つけられへんかった...。もうちょっと簡単な言葉で聞いてみてくれる？"
-        return fallback, fallback
+        return fallback, ""
 
 
 def lambda_handler(event: dict, _context) -> dict:
@@ -140,44 +113,20 @@ def lambda_handler(event: dict, _context) -> dict:
     query = event.get("toolQuery")
     if not query:
         raise ValueError("No query found in the event payload")
-    prompt = event.get("toolPrompt", "")
 
-    try:
-        grok_response, grok_body = call_grok_api(query, prompt)
-        logger.info(f"Grok response received: {grok_response}")
+    grok_response, grok_body = call_grok_api(query, event.get("toolPrompt", ""))
+    event["grokResponse"] = grok_response
+    event["grokBody"] = grok_body
 
-        # `grokResponse` is sent to the user (body + citation footer).
-        # `grokBody` is saved into history without the footer so future LLM
-        # turns are not polluted by URL lists.
-        response_data = {
-            "grokResponse": grok_response,
-            "grokBody": grok_body,
-            "userId": event.get("userId"),
-            "conversationContext": event.get("conversationContext"),
-            "sourceType": event.get("sourceType"),
-            "sourceId": event.get("sourceId"),
-        }
+    # This stage owns delivery: the workflow ends here.
+    line_messaging.push_text(event, grok_response, retry_key=event.get("executionName"))
 
-        # Include quote_token if present
-        if "quote_token" in event:
-            response_data["quote_token"] = event["quote_token"]
+    # `grok_body` is empty when the search failed and grok_response is the
+    # apology. Recording that would leave a fake assistant failure in the
+    # context of every later turn.
+    if grok_body:
+        conversation_context = event.get("conversationContext")
+        if conversation_context:
+            line_messaging.append_and_save(event["userId"], conversation_context, grok_body)
 
-        return response_data
-
-    except Exception as e:
-        logger.error(f"Error in Grok processor: {e}")
-        fallback = "ごめんやで〜、こびとさんが情報見つけられへんかったわ...。もうちょっと簡単な言葉で聞いてみてくれる？"
-        error_response = {
-            "grokResponse": fallback,
-            "grokBody": fallback,
-            "userId": event.get("userId"),
-            "conversationContext": event.get("conversationContext"),
-            "sourceType": event.get("sourceType"),
-            "sourceId": event.get("sourceId"),
-        }
-
-        # Include quote_token if present
-        if "quote_token" in event:
-            error_response["quote_token"] = event["quote_token"]
-
-        return error_response
+    return event

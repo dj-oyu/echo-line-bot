@@ -116,7 +116,7 @@ describe('LINE Echo Stack', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'response_sender.lambda_handler',
         Runtime: 'python3.14',
-        Description: 'Sends final response to LINE and saves conversation history',
+        Description: 'Notifies the user when a stage failed before it could reply',
         Timeout: 10
       });
     });

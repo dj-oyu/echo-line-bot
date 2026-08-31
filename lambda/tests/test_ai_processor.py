@@ -21,35 +21,35 @@ with patch.dict(
 
 
 class TestAiProcessor(unittest.TestCase):
-    @patch("ai_processor.conversation_table")
+    @patch("line_messaging.conversation_table")
     def test_delete_conversation_history_success(self, mock_table):
         """Test successful deletion of conversation history."""
         user_id = "test_user_123"
-        mock_table.query.return_value = {
+        mock_table.return_value.query.return_value = {
             "Items": [
                 {"userId": user_id, "conversationId": "conv1"},
                 {"userId": user_id, "conversationId": "conv2"},
             ]
         }
         mock_batch_writer = MagicMock()
-        mock_table.batch_writer.return_value.__enter__.return_value = mock_batch_writer
+        mock_table.return_value.batch_writer.return_value.__enter__.return_value = mock_batch_writer
 
         result = delete_conversation_history(user_id)
 
         self.assertTrue(result)
-        mock_table.query.assert_called_once()
+        mock_table.return_value.query.assert_called_once()
         self.assertEqual(mock_batch_writer.delete_item.call_count, 2)
 
-    @patch("ai_processor.conversation_table")
+    @patch("line_messaging.conversation_table")
     def test_delete_conversation_history_failure(self, mock_table):
         """Test failure in deleting conversation history."""
         user_id = "test_user_456"
-        mock_table.query.side_effect = Exception("DynamoDB error")
+        mock_table.return_value.query.side_effect = Exception("DynamoDB error")
 
         result = delete_conversation_history(user_id)
 
         self.assertFalse(result)
-        mock_table.query.assert_called_once()
+        mock_table.return_value.query.assert_called_once()
 
 
 class TestDefaultReasoningEffort(unittest.TestCase):
@@ -133,6 +133,107 @@ class TestGetAiResponse(unittest.TestCase):
         self.assertEqual(result["toolName"], "search_with_grok")
         self.assertEqual(result["toolQuery"], "最新のxAI")
         self.assertEqual(result["toolPrompt"], "詳しく")
+
+
+class TestDirectAnswerDelivery(unittest.TestCase):
+    """ai_processor now delivers a direct answer itself; the workflow ends there."""
+
+    def _stub_direct_answer(self, mock_get_client):
+        message = MagicMock()
+        message.tool_calls = None
+        message.content = "まいど！"
+        response = MagicMock()
+        response.choices = [MagicMock(message=message)]
+        client = MagicMock()
+        client.chat.completions.create.return_value = response
+        mock_get_client.return_value = client
+
+    @patch("line_messaging.append_and_save")
+    @patch("line_messaging.push_text")
+    @patch("ai_processor.get_groq_client")
+    def test_sends_and_records_the_answer(self, mock_get_client, mock_push, mock_save):
+        self._stub_direct_answer(mock_get_client)
+        event = {
+            "userId": "U1",
+            "sourceType": "user",
+            "executionName": "exec-1",
+            "conversationContext": {"userId": "U1", "messages": [{"role": "user", "content": "やあ"}]},
+        }
+
+        with patch.object(ai_processor, "AI_SELECT", "groq"):
+            ai_processor.lambda_handler(event, None)
+
+        mock_push.assert_called_once()
+        self.assertEqual(mock_push.call_args.args[1], "まいど！")
+        # the execution name is reused as the LINE retry key
+        self.assertEqual(mock_push.call_args.kwargs["retry_key"], "exec-1")
+        mock_save.assert_called_once()
+
+    @patch("line_messaging.append_and_save")
+    @patch("line_messaging.push_text")
+    @patch("ai_processor.get_groq_client")
+    def test_a_tool_call_only_sends_the_interim_notice(self, mock_get_client, mock_push, mock_save):
+        tool_call = MagicMock()
+        tool_call.function.name = "search_with_grok"
+        tool_call.function.arguments = '{"query": "x", "prompt": ""}'
+        message = MagicMock()
+        message.tool_calls = [tool_call]
+        response = MagicMock()
+        response.choices = [MagicMock(message=message)]
+        client = MagicMock()
+        client.chat.completions.create.return_value = response
+        mock_get_client.return_value = client
+
+        event = {
+            "userId": "U1",
+            "sourceType": "user",
+            "executionName": "exec-1",
+            "conversationContext": {"userId": "U1", "messages": []},
+        }
+        with patch.object(ai_processor, "AI_SELECT", "groq"):
+            result = ai_processor.lambda_handler(event, None)
+
+        self.assertTrue(result["hasToolCall"])
+        self.assertEqual(mock_push.call_args.args[1], ai_processor.INTERIM_MESSAGE)
+        self.assertTrue(mock_push.call_args.kwargs["show_loading"])
+        # the answer is not known yet, so nothing is recorded
+        mock_save.assert_not_called()
+
+    @patch("line_messaging.append_and_save")
+    @patch("line_messaging.push_text", side_effect=Exception("LINE is down"))
+    @patch("ai_processor.get_groq_client")
+    def test_a_failed_interim_notice_does_not_lose_the_tool_call(
+        self, mock_get_client, mock_push, mock_save
+    ):
+        tool_call = MagicMock()
+        tool_call.function.name = "search_with_grok"
+        tool_call.function.arguments = '{"query": "x", "prompt": ""}'
+        message = MagicMock()
+        message.tool_calls = [tool_call]
+        response = MagicMock()
+        response.choices = [MagicMock(message=message)]
+        client = MagicMock()
+        client.chat.completions.create.return_value = response
+        mock_get_client.return_value = client
+
+        event = {"userId": "U1", "conversationContext": {"userId": "U1", "messages": []}}
+        with patch.object(ai_processor, "AI_SELECT", "groq"):
+            result = ai_processor.lambda_handler(event, None)
+
+        self.assertTrue(result["hasToolCall"])
+        self.assertEqual(result["toolQuery"], "x")
+
+    def test_interim_and_final_retry_keys_differ(self):
+        """One key for both messages would make LINE drop the second."""
+        final = "exec-1"
+        interim = ai_processor._derive_retry_key(final, "interim")
+        self.assertIsNotNone(interim)
+        self.assertNotEqual(interim, final)
+        # stable across calls, so a retry reuses it
+        self.assertEqual(interim, ai_processor._derive_retry_key(final, "interim"))
+
+    def test_no_execution_name_means_no_retry_key(self):
+        self.assertIsNone(ai_processor._derive_retry_key(None, "interim"))
 
 
 if __name__ == "__main__":

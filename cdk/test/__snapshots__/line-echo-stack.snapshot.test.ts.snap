@@ -125,7 +125,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "Fn::Join": [
             "",
             [
-              "{"StartAt":"ProcessWithLLM","States":{"ProcessWithLLM":{"Next":"CheckForToolCall","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              "{"StartAt":"ProcessWithLLM","States":{"ProcessWithLLM":{"Next":"CheckForToolCall","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"NotifyFailure"}],"Type":"Task","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -136,18 +136,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"CheckForToolCall":{"Type":"Choice","Choices":[{"Variable":"$.aiProcessorResult.Payload.hasToolCall","BooleanEquals":true,"Next":"ProcessWithGrok"}],"Default":"SendResponse"},"SendResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","Resource":"arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
-              {
-                "Fn::GetAtt": [
-                  "ResponseSenderA99BF567",
-                  "Arn",
-                ],
-              },
-              "","Payload.$":"$"}},"ProcessWithGrok":{"Next":"SendResponse","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              "","Payload.$":"$"}},"CheckForToolCall":{"Type":"Choice","Choices":[{"Variable":"$.aiProcessorResult.Payload.hasToolCall","BooleanEquals":true,"Next":"ProcessWithGrok"}],"Default":"AnsweredDirectly"},"AnsweredDirectly":{"Type":"Succeed"},"ProcessWithGrok":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Catch":[{"ErrorEquals":["States.ALL"],"ResultPath":"$.error","Next":"NotifyFailure"}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.grokProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -155,6 +144,17 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               {
                 "Fn::GetAtt": [
                   "GrokProcessor251242A2",
+                  "Arn",
+                ],
+              },
+              "","Payload.$":"$"}},"NotifyFailure":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","Resource":"arn:",
+              {
+                "Ref": "AWS::Partition",
+              },
+              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
+              {
+                "Fn::GetAtt": [
+                  "ResponseSenderA99BF567",
                   "Arn",
                 ],
               },
@@ -226,7 +226,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "ResponseSenderA99BF567",
+                    "GrokProcessor251242A2",
                     "Arn",
                   ],
                 },
@@ -236,7 +236,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     [
                       {
                         "Fn::GetAtt": [
-                          "ResponseSenderA99BF567",
+                          "GrokProcessor251242A2",
                           "Arn",
                         ],
                       },
@@ -252,7 +252,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "GrokProcessor251242A2",
+                    "ResponseSenderA99BF567",
                     "Arn",
                   ],
                 },
@@ -262,7 +262,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     [
                       {
                         "Fn::GetAtt": [
-                          "GrokProcessor251242A2",
+                          "ResponseSenderA99BF567",
                           "Arn",
                         ],
                       },
@@ -896,6 +896,10 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
         "Description": "Processes queries using Grok AI for web search",
         "Environment": {
           "Variables": {
+            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
+            "CONVERSATION_TABLE_NAME": {
+              "Ref": "ConversationHistoryD9612A4F",
+            },
             "XAI_API_KEY_SECRET_NAME": "XAI_API_KEY",
             "XAI_MODEL": "grok-4.6",
           },
@@ -947,6 +951,71 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   ],
                 ],
               },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "dynamodb:BatchGetItem",
+                "dynamodb:Query",
+                "dynamodb:GetItem",
+                "dynamodb:Scan",
+                "dynamodb:ConditionCheckItem",
+                "dynamodb:BatchWriteItem",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:DescribeTable",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
+                {
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
+                },
+              ],
             },
           ],
           "Version": "2012-10-17",
@@ -1003,13 +1072,10 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           },
           "S3Key": "<ASSET_HASH>.zip",
         },
-        "Description": "Sends final response to LINE and saves conversation history",
+        "Description": "Notifies the user when a stage failed before it could reply",
         "Environment": {
           "Variables": {
             "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
-            "CONVERSATION_TABLE_NAME": {
-              "Ref": "ConversationHistoryD9612A4F",
-            },
           },
         },
         "Handler": "response_sender.lambda_handler",
@@ -1090,44 +1156,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   ],
                 ],
               },
-            },
-            {
-              "Action": [
-                "dynamodb:BatchGetItem",
-                "dynamodb:Query",
-                "dynamodb:GetItem",
-                "dynamodb:Scan",
-                "dynamodb:ConditionCheckItem",
-                "dynamodb:BatchWriteItem",
-                "dynamodb:PutItem",
-                "dynamodb:UpdateItem",
-                "dynamodb:DeleteItem",
-                "dynamodb:DescribeTable",
-              ],
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "ConversationHistoryD9612A4F",
-                    "Arn",
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": [
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
-              ],
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
-                    "ConversationHistoryD9612A4F",
-                    "Arn",
-                  ],
-                },
-              ],
             },
           ],
           "Version": "2012-10-17",
@@ -1432,7 +1460,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "ResponseSenderA99BF567",
+                    "GrokProcessor251242A2",
                     "Arn",
                   ],
                 },
@@ -1442,7 +1470,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     [
                       {
                         "Fn::GetAtt": [
-                          "ResponseSenderA99BF567",
+                          "GrokProcessor251242A2",
                           "Arn",
                         ],
                       },
@@ -1458,7 +1486,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "GrokProcessor251242A2",
+                    "ResponseSenderA99BF567",
                     "Arn",
                   ],
                 },
@@ -1468,7 +1496,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     [
                       {
                         "Fn::GetAtt": [
-                          "GrokProcessor251242A2",
+                          "ResponseSenderA99BF567",
                           "Arn",
                         ],
                       },
@@ -1644,16 +1672,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                 ],
               },
             },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "ResponseSenderServiceRoleDefaultPolicyE216D348": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
             {
               "Action": [
                 "secretsmanager:GetSecretValue",
@@ -1718,6 +1736,43 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   ],
                 },
               ],
+            },
+          ],
+          "Version": "2012-10-17",
+        },
+      },
+      "Type": "AWS::IAM::Policy",
+    },
+    "ResponseSenderServiceRoleDefaultPolicyE216D348": {
+      "Properties": {
+        "PolicyDocument": {
+          "Statement": [
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
             },
           ],
           "Version": "2012-10-17",
@@ -2040,6 +2095,8 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       "Description": "Processes queries using Grok AI for web search",
       "Environment": {
         "Variables": [
+          "CHANNEL_ACCESS_TOKEN_NAME",
+          "CONVERSATION_TABLE_NAME",
           "XAI_API_KEY_SECRET_NAME",
           "XAI_MODEL",
         ],
@@ -2052,11 +2109,10 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
   },
   "ResponseSenderA99BF567": {
     "Properties": {
-      "Description": "Sends final response to LINE and saves conversation history",
+      "Description": "Notifies the user when a stage failed before it could reply",
       "Environment": {
         "Variables": [
           "CHANNEL_ACCESS_TOKEN_NAME",
-          "CONVERSATION_TABLE_NAME",
         ],
       },
       "Handler": "response_sender.lambda_handler",
@@ -2264,8 +2320,6 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
       "Effect": "Allow",
       "Resources": 1,
     },
-  ],
-  "ResponseSenderServiceRoleDefaultPolicyE216D348": [
     {
       "Actions": [
         "secretsmanager:DescribeSecret",
@@ -2294,6 +2348,16 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
       "Actions": [
         "dynamodb:GetRecords",
         "dynamodb:GetShardIterator",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
+  ],
+  "ResponseSenderServiceRoleDefaultPolicyE216D348": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
       ],
       "Effect": "Allow",
       "Resources": 1,
