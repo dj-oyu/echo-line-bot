@@ -66,17 +66,19 @@ describe('LINE Echo Stack', () => {
   });
 
   describe('Lambda Functions Configuration', () => {
-    test('should create webhook handler with proper timeout for LINE webhook constraints', () => {
+    test('should give the webhook handler room to survive a cold start', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
-      // Then: Webhook handler should be created with default timeout (suitable for LINE's 5-second limit)
+      // Then: Webhook handler must not be left on the 3-second CDK default.
+      //       Measured cold start init was 2.8-3.2 s, and CloudWatch showed
+      //       invocations ending at exactly 3000.00 ms, so cold requests were
+      //       killed before they could start the Step Function.
       
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'webhook_handler.lambda_handler',
         Runtime: 'python3.14',
         Description: 'Handles LINE webhook events and initiates AI processing',
-        // Default timeout is 3 seconds, which is well within LINE's 5-second limit
-        Timeout: Match.absent() // Uses CDK default of 3 seconds
+        Timeout: 10
       });
     });
 

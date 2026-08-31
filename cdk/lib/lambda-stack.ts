@@ -141,6 +141,9 @@ export class LineEchoStack extends cdk.Stack {
     secrets: ReturnType<typeof this.createSecretReferences>,
     dependenciesLayer: lambda.LayerVersion
   ) {
+    // Memory is deliberately left at the 128 MB default. CloudWatch shows all
+    // five functions peaking at 107-122 MB, which is tight, but zero OOM events
+    // have occurred. Raise it only if the logs actually show one.
     const baseConfig = {
       runtime: PYTHON_RUNTIME,
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda'), {
@@ -153,6 +156,11 @@ export class LineEchoStack extends cdk.Stack {
       ...baseConfig,
       handler: 'webhook_handler.lambda_handler',
       description: 'Handles LINE webhook events and initiates AI processing',
+      // The CDK default is 3 s, but cold start init alone measured 2.8-3.2 s,
+      // so cold invocations were being killed before they could start the
+      // Step Function and LINE got no response. Warm invocations take ~0.6 s;
+      // this ceiling only exists to survive a cold start.
+      timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: secrets.lineChannelSecret.secretName,
@@ -199,16 +207,10 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
 
-    // Observed ~110/128 MB on long Grok responses (xai_sdk + long response
-    // body + markdown-it AST), so the default 128 MB was one long answer away
-    // from OOM. Lambda also scales CPU with memory, so 512 MB both removes the
-    // headroom problem and cuts import/render time. Billed duration shrinks
-    // roughly in proportion, making the cost impact close to neutral.
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
       ...baseConfig,
       handler: 'grok_processor.lambda_handler',
       description: 'Processes queries using Grok AI for web search',
-      memorySize: 512,
       timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
