@@ -70,17 +70,10 @@ export class TestDataFactory {
         {
           handler: 'ai_processor.lambda_handler',
           runtime: 'python3.14',
-          description: 'Processes user messages using SambaNova AI',
+          description: 'Routes a message: answers directly or requests a web search',
           timeout: 60,
           requiresConversationTable: true,
           requiresSambaNovaCredentials: true
-        },
-        {
-          handler: 'interim_response_sender.lambda_handler',
-          runtime: 'python3.14',
-          description: 'Sends interim response while processing complex queries',
-          timeout: 10,
-          requiresLineCredentials: true
         },
         {
           handler: 'grok_processor.lambda_handler',
@@ -125,12 +118,10 @@ export class TestDataFactory {
         timeoutSeconds: 300,
         comment: 'Orchestrates AI processing workflow with optional web search',
         expectedStates: [
-          'ProcessWithSambaNova',
+          'ProcessWithLLM',
           'CheckForToolCall',
-          'SendInterimResponse',
           'ProcessWithGrok',
-          'SendFinalResponse',
-          'SendDirectResponse'
+          'SendResponse'
         ]
       }
     };
@@ -402,7 +393,7 @@ export const TEST_CONSTANTS = {
   GROK_LAMBDA_TIMEOUT: 180,
   AI_PROCESSOR_TIMEOUT: 60,
   RESPONSE_TIMEOUT: 10,
-  EXPECTED_LAMBDA_COUNT: 5,
+  EXPECTED_LAMBDA_COUNT: 4,
   EXPECTED_LAYER_COUNT: 1,
   EXPECTED_TABLE_COUNT: 1,
   EXPECTED_STATE_MACHINE_COUNT: 1,

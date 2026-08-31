@@ -125,7 +125,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           "Fn::Join": [
             "",
             [
-              "{"StartAt":"ProcessWithSambaNova","States":{"ProcessWithSambaNova":{"Next":"CheckForToolCall","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              "{"StartAt":"ProcessWithLLM","States":{"ProcessWithLLM":{"Next":"CheckForToolCall","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -136,7 +136,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"CheckForToolCall":{"Type":"Choice","Choices":[{"Variable":"$.aiProcessorResult.Payload.hasToolCall","BooleanEquals":true,"Next":"SendInterimResponse"}],"Default":"SendDirectResponse"},"SendDirectResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","Resource":"arn:",
+              "","Payload.$":"$"}},"CheckForToolCall":{"Type":"Choice","Choices":[{"Variable":"$.aiProcessorResult.Payload.hasToolCall","BooleanEquals":true,"Next":"ProcessWithGrok"}],"Default":"SendResponse"},"SendResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -147,18 +147,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                   "Arn",
                 ],
               },
-              "","Payload.$":"$"}},"SendInterimResponse":{"Next":"ProcessWithGrok","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":null,"Resource":"arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
-              {
-                "Fn::GetAtt": [
-                  "InterimResponseSender14E21E4D",
-                  "Arn",
-                ],
-              },
-              "","Payload.$":"$"}},"ProcessWithGrok":{"Next":"SendFinalResponse","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.grokProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
+              "","Payload.$":"$"}},"ProcessWithGrok":{"Next":"SendResponse","Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.aiProcessorResult.Payload","ResultPath":"$.aiProcessorResult","ResultSelector":{"Payload.$":"$.Payload"},"Resource":"arn:",
               {
                 "Ref": "AWS::Partition",
               },
@@ -166,17 +155,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               {
                 "Fn::GetAtt": [
                   "GrokProcessor251242A2",
-                  "Arn",
-                ],
-              },
-              "","Payload.$":"$"}},"SendFinalResponse":{"End":true,"Retry":[{"ErrorEquals":["Lambda.ClientExecutionTimeoutException","Lambda.ServiceException","Lambda.AWSLambdaException","Lambda.SdkClientException"],"IntervalSeconds":2,"MaxAttempts":6,"BackoffRate":2}],"Type":"Task","InputPath":"$.grokProcessorResult.Payload","Resource":"arn:",
-              {
-                "Ref": "AWS::Partition",
-              },
-              ":states:::lambda:invoke","Parameters":{"FunctionName":"",
-              {
-                "Fn::GetAtt": [
-                  "ResponseSenderA99BF567",
                   "Arn",
                 ],
               },
@@ -274,32 +252,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "InterimResponseSender14E21E4D",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "InterimResponseSender14E21E4D",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
                     "GrokProcessor251242A2",
                     "Arn",
                   ],
@@ -344,10 +296,11 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           },
           "S3Key": "<ASSET_HASH>.zip",
         },
-        "Description": "Processes user messages using SambaNova AI",
+        "Description": "Routes a message: answers directly or requests a web search",
         "Environment": {
           "Variables": {
             "AI_BACKEND": "groq",
+            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
             "CONVERSATION_TABLE_NAME": {
               "Ref": "ConversationHistoryD9612A4F",
             },
@@ -459,6 +412,33 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                       "Ref": "AWS::AccountId",
                     },
                     ":secret:GROQ_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
                   ],
                 ],
               },
@@ -1011,115 +991,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       },
       "Type": "AWS::IAM::Role",
     },
-    "InterimResponseSender14E21E4D": {
-      "DependsOn": [
-        "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1",
-        "InterimResponseSenderServiceRole9CD7D4F1",
-      ],
-      "Properties": {
-        "Code": {
-          "S3Bucket": {
-            "Fn::Sub": "cdk-hnb659fds-assets-\${AWS::AccountId}-\${AWS::Region}",
-          },
-          "S3Key": "<ASSET_HASH>.zip",
-        },
-        "Description": "Sends interim response while processing complex queries",
-        "Environment": {
-          "Variables": {
-            "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
-          },
-        },
-        "Handler": "interim_response_sender.lambda_handler",
-        "Layers": [
-          {
-            "Ref": "DependenciesLayerDF300E31",
-          },
-        ],
-        "Role": {
-          "Fn::GetAtt": [
-            "InterimResponseSenderServiceRole9CD7D4F1",
-            "Arn",
-          ],
-        },
-        "Runtime": "python3.14",
-        "Timeout": 10,
-      },
-      "Type": "AWS::Lambda::Function",
-    },
-    "InterimResponseSenderServiceRole9CD7D4F1": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
-    "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "secretsmanager:GetSecretValue",
-                "secretsmanager:DescribeSecret",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":secretsmanager:",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "PolicyName": "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1",
-        "Roles": [
-          {
-            "Ref": "InterimResponseSenderServiceRole9CD7D4F1",
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Policy",
-    },
     "ResponseSenderA99BF567": {
       "DependsOn": [
         "ResponseSenderServiceRoleDefaultPolicyE216D348",
@@ -1587,32 +1458,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Resource": [
                 {
                   "Fn::GetAtt": [
-                    "InterimResponseSender14E21E4D",
-                    "Arn",
-                  ],
-                },
-                {
-                  "Fn::Join": [
-                    "",
-                    [
-                      {
-                        "Fn::GetAtt": [
-                          "InterimResponseSender14E21E4D",
-                          "Arn",
-                        ],
-                      },
-                      ":*",
-                    ],
-                  ],
-                },
-              ],
-            },
-            {
-              "Action": "lambda:InvokeFunction",
-              "Effect": "Allow",
-              "Resource": [
-                {
-                  "Fn::GetAtt": [
                     "GrokProcessor251242A2",
                     "Arn",
                   ],
@@ -1699,6 +1544,33 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             },
             {
               "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
                 "dynamodb:BatchGetItem",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
@@ -1768,43 +1640,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                       "Ref": "AWS::AccountId",
                     },
                     ":secret:XAI_API_KEY-??????",
-                  ],
-                ],
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-      },
-      "Type": "AWS::IAM::Policy",
-    },
-    "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": {
-      "Properties": {
-        "PolicyDocument": {
-          "Statement": [
-            {
-              "Action": [
-                "secretsmanager:GetSecretValue",
-                "secretsmanager:DescribeSecret",
-              ],
-              "Effect": "Allow",
-              "Resource": {
-                "Fn::Join": [
-                  "",
-                  [
-                    "arn:",
-                    {
-                      "Ref": "AWS::Partition",
-                    },
-                    ":secretsmanager:",
-                    {
-                      "Ref": "AWS::Region",
-                    },
-                    ":",
-                    {
-                      "Ref": "AWS::AccountId",
-                    },
-                    ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
                   ],
                 ],
               },
@@ -2112,37 +1947,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       },
       "Type": "AWS::IAM::Role",
     },
-    "InterimResponseSenderServiceRole9CD7D4F1": {
-      "Properties": {
-        "AssumeRolePolicyDocument": {
-          "Statement": [
-            {
-              "Action": "sts:AssumeRole",
-              "Effect": "Allow",
-              "Principal": {
-                "Service": "lambda.amazonaws.com",
-              },
-            },
-          ],
-          "Version": "2012-10-17",
-        },
-        "ManagedPolicyArns": [
-          {
-            "Fn::Join": [
-              "",
-              [
-                "arn:",
-                {
-                  "Ref": "AWS::Partition",
-                },
-                ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole",
-              ],
-            ],
-          },
-        ],
-      },
-      "Type": "AWS::IAM::Role",
-    },
     "ResponseSenderServiceRole58D7A13C": {
       "Properties": {
         "AssumeRolePolicyDocument": {
@@ -2213,10 +2017,11 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
 {
   "AiProcessor07B99A55": {
     "Properties": {
-      "Description": "Processes user messages using SambaNova AI",
+      "Description": "Routes a message: answers directly or requests a web search",
       "Environment": {
         "Variables": [
           "AI_BACKEND",
+          "CHANNEL_ACCESS_TOKEN_NAME",
           "CONVERSATION_TABLE_NAME",
           "GROQ_API_KEY_NAME",
           "GROQ_MODEL",
@@ -2242,20 +2047,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       "Handler": "grok_processor.lambda_handler",
       "Runtime": "python3.14",
       "Timeout": 180,
-    },
-    "Type": "AWS::Lambda::Function",
-  },
-  "InterimResponseSender14E21E4D": {
-    "Properties": {
-      "Description": "Sends interim response while processing complex queries",
-      "Environment": {
-        "Variables": [
-          "CHANNEL_ACCESS_TOKEN_NAME",
-        ],
-      },
-      "Handler": "interim_response_sender.lambda_handler",
-      "Runtime": "python3.14",
-      "Timeout": 10,
     },
     "Type": "AWS::Lambda::Function",
   },
@@ -2311,12 +2102,11 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
 
 exports[`LINE Echo Stack - Snapshot Tests Environment-Specific Snapshots should match development environment snapshot 1`] = `
 {
-  "functionCount": 5,
+  "functionCount": 4,
   "runtimes": [
     "python3.14",
   ],
   "timeouts": [
-    10,
     10,
     10,
     180,
@@ -2343,10 +2133,6 @@ exports[`LINE Echo Stack - Snapshot Tests Performance Configuration Snapshots sh
         "timeout": 180,
       },
       {
-        "handler": "interim_response_sender.lambda_handler",
-        "timeout": 10,
-      },
-      {
         "handler": "response_sender.lambda_handler",
         "timeout": 10,
       },
@@ -2366,11 +2152,10 @@ exports[`LINE Echo Stack - Snapshot Tests Performance Configuration Snapshots sh
 
 exports[`LINE Echo Stack - Snapshot Tests Resource Count Snapshots should match Lambda function count and names snapshot 1`] = `
 {
-  "count": 5,
+  "count": 4,
   "handlers": [
     "ai_processor.lambda_handler",
     "grok_processor.lambda_handler",
-    "interim_response_sender.lambda_handler",
     "response_sender.lambda_handler",
     "webhook_handler.lambda_handler",
   ],
@@ -2386,9 +2171,9 @@ exports[`LINE Echo Stack - Snapshot Tests Resource Count Snapshots should match 
   "AWS::ApiGateway::RestApi": 1,
   "AWS::ApiGateway::Stage": 1,
   "AWS::DynamoDB::Table": 1,
-  "AWS::IAM::Policy": 6,
-  "AWS::IAM::Role": 7,
-  "AWS::Lambda::Function": 5,
+  "AWS::IAM::Policy": 5,
+  "AWS::IAM::Role": 6,
+  "AWS::Lambda::Function": 4,
   "AWS::Lambda::LayerVersion": 1,
   "AWS::Lambda::Permission": 4,
   "AWS::StepFunctions::StateMachine": 1,
@@ -2419,15 +2204,16 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
       "Effect": "Allow",
       "Resources": 2,
     },
-    {
-      "Actions": [
-        "lambda:InvokeFunction",
-      ],
-      "Effect": "Allow",
-      "Resources": 2,
-    },
   ],
   "AiProcessorServiceRoleDefaultPolicy8F442964": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
     {
       "Actions": [
         "secretsmanager:DescribeSecret",
@@ -2470,16 +2256,6 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
     },
   ],
   "GrokProcessorServiceRoleDefaultPolicy7DF55481": [
-    {
-      "Actions": [
-        "secretsmanager:DescribeSecret",
-        "secretsmanager:GetSecretValue",
-      ],
-      "Effect": "Allow",
-      "Resources": 1,
-    },
-  ],
-  "InterimResponseSenderServiceRoleDefaultPolicy9AB794E1": [
     {
       "Actions": [
         "secretsmanager:DescribeSecret",

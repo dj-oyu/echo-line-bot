@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 SAMBA_NOVA_API_KEY_NAME = os.environ.get("SAMBA_NOVA_API_KEY_NAME", "")
 GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
 CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
+CHANNEL_ACCESS_TOKEN_NAME = os.environ.get("CHANNEL_ACCESS_TOKEN_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
 SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
@@ -131,6 +132,12 @@ def lambda_handler(event: dict, _context) -> dict:
         # This ensures we pass through all necessary info like userId, sourceType, quote_token, etc.
         event.update(response_payload)
 
+        # A search takes ~60 s, so tell the user something is happening before
+        # handing off to Grok. Best effort: this is cosmetic, and losing it must
+        # not cost us the tool-call decision we just paid 25 s for.
+        if event.get("hasToolCall"):
+            notify_search_started(event)
+
         # If it's a normal response, add it to the conversation history now
         if not event.get("hasToolCall"):
             ai_response = event.get("aiResponse")
@@ -152,6 +159,72 @@ def lambda_handler(event: dict, _context) -> dict:
         event["error"] = str(e)
         event["aiResponse"] = "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
         return event
+
+
+INTERIM_MESSAGE = "なんやややこしい質問やな～ 今こびとさんに調べてきてもろとるから待っとき！"
+
+
+def notify_search_started(event: dict) -> None:
+    """Tell the user a web search is running, before Grok is invoked.
+
+    linebot is imported here rather than at module scope because only the
+    search path needs it: a direct answer never touches the Messaging API,
+    and the import plus the token fetch would otherwise be paid on every
+    message. Every failure is swallowed — the caller already holds the tool
+    call decision and must not lose it over a cosmetic notice.
+
+    Args:
+        event: Handler event carrying userId, sourceType, sourceId and
+            optionally quote_token
+    """
+    try:
+        from linebot.v3.messaging import (
+            ApiClient,
+            Configuration,
+            MessagingApi,
+            PushMessageRequest,
+            ShowLoadingAnimationRequest,
+            TextMessage,
+        )
+
+        user_id = event["userId"]
+        source_type = event.get("sourceType")
+        source_id = event.get("sourceId")
+        target_id = source_id if source_type in ("group", "room") and source_id else user_id
+
+        configuration = Configuration(access_token=get_secret(CHANNEL_ACCESS_TOKEN_NAME))
+        with ApiClient(configuration) as api_client:
+            line_bot_api = MessagingApi(api_client)
+
+            # Loading dots first (1-on-1 only) so the chat reads:
+            # typing indicator -> interim text -> final answer.
+            if source_type not in ("group", "room"):
+                try:
+                    line_bot_api.show_loading_animation(
+                        show_loading_animation_request=ShowLoadingAnimationRequest(
+                            chatId=user_id, loadingSeconds=60
+                        )
+                    )
+                except Exception as e:
+                    logger.warning("Failed to show loading animation: %s", e)
+
+            quote_token = event.get("quote_token")
+            line_bot_api.push_message_with_http_info(
+                push_message_request=PushMessageRequest(
+                    to=target_id,
+                    messages=[
+                        TextMessage(
+                            text=INTERIM_MESSAGE,
+                            quoteToken=quote_token
+                            if quote_token and source_type in ("group", "room")
+                            else None,
+                        )
+                    ],
+                )
+            )
+        logger.info("Sent interim message to %s", target_id)
+    except Exception as e:
+        logger.error("Failed to send interim message: %s", e)
 
 
 def get_ai_response(messages: list) -> dict:

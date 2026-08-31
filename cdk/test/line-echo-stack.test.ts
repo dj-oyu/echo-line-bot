@@ -90,7 +90,7 @@ describe('LINE Echo Stack', () => {
       template.hasResourceProperties('AWS::Lambda::Function', {
         Handler: 'ai_processor.lambda_handler',
         Runtime: 'python3.14',
-        Description: 'Processes user messages using SambaNova AI',
+        Description: 'Routes a message: answers directly or requests a web search',
         Timeout: 60
       });
     });
@@ -119,13 +119,6 @@ describe('LINE Echo Stack', () => {
         Description: 'Sends final response to LINE and saves conversation history',
         Timeout: 10
       });
-
-      template.hasResourceProperties('AWS::Lambda::Function', {
-        Handler: 'interim_response_sender.lambda_handler',
-        Runtime: 'python3.14',
-        Description: 'Sends interim response while processing complex queries',
-        Timeout: 10
-      });
     });
 
     test('should ensure all Lambda functions use consistent Python runtime', () => {
@@ -136,7 +129,7 @@ describe('LINE Echo Stack', () => {
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
       const functionCount = Object.keys(lambdaFunctions).length;
       
-      expect(functionCount).toBe(5);
+      expect(functionCount).toBe(4);
       
       Object.values(lambdaFunctions).forEach((func: any) => {
         expect(func.Properties.Runtime).toBe('python3.14');
@@ -487,7 +480,7 @@ describe('LINE Echo Stack', () => {
       // When: The stack is synthesized
       // Then: The correct number of each resource type should be created
       
-      template.resourceCountIs('AWS::Lambda::Function', 5);
+      template.resourceCountIs('AWS::Lambda::Function', 4);
       template.resourceCountIs('AWS::Lambda::LayerVersion', 1);
       template.resourceCountIs('AWS::DynamoDB::Table', 1);
       template.resourceCountIs('AWS::StepFunctions::StateMachine', 1);
