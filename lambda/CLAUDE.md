@@ -4,7 +4,7 @@ LINE Bot のバックエンド処理を担う Python Lambda 関数群。AI統合
 
 ## Technology Stack
 
-- **Language**: Python 3.12
+- **Language**: Python 3.14
 - **Package Manager**: uv
 - **LINE SDK**: line-bot-sdk v3
 - **AI Clients**: OpenAI SDK (SambaNova/Groq互換), xai-sdk
