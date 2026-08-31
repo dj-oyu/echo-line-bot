@@ -86,7 +86,7 @@ def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
 
         # Create chat with web search tool (Agent Tools API)
         chat = client.chat.create(
-            model="grok-4.3",
+            model="grok-4.6",
             tools=[web_search()],
         )
 

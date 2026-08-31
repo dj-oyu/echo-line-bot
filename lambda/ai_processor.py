@@ -19,8 +19,11 @@ GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
 CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
-SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3-0324")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+# Groq models disagree on the accepted vocabulary: qwen3.6 takes "none"/"default"
+# while gpt-oss takes "low"/"medium"/"high". Keep it configurable alongside the model.
+GROQ_REASONING_EFFORT = os.environ.get("GROQ_REASONING_EFFORT", "none")
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
@@ -179,7 +182,7 @@ def get_ai_response(messages: list) -> dict:
         else:
             response = get_groq_client().chat.completions.create(  # type: ignore[call-overload]
                 model=GROQ_MODEL,
-                reasoning_effort="medium",
+                reasoning_effort=GROQ_REASONING_EFFORT,
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,

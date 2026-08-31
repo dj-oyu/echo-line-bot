@@ -152,8 +152,9 @@ export class LineEchoStack extends cdk.Stack {
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
-        SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3-0324',
-        GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+        SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
+        GROQ_MODEL: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+        GROQ_REASONING_EFFORT: process.env.GROQ_REASONING_EFFORT || 'none',
       },
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);

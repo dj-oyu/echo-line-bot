@@ -99,6 +99,17 @@ dependencies = [
 
 両方ともOpenAI互換APIを提供。
 
+### モデル設定
+
+| 環境変数 | デフォルト | 備考 |
+|----------|-----------|------|
+| `GROQ_MODEL` | `qwen/qwen3.6-27b` | 131k コンテキスト / tool use 対応 |
+| `GROQ_REASONING_EFFORT` | `none` | qwen3.6 は `none` / `default` の2値のみ。gpt-oss 系は `low` / `medium` / `high`。**モデルを変えたら必ずこちらも合わせる**（語彙が非互換で、不正値は 400） |
+| `SAMBANOVA_MODEL` | `DeepSeek-V3.2` | Preview 扱い / 32k コンテキスト。DeepSeek 系は tool calling が non-thinking モード限定なので `chat_template_kwargs.enable_thinking` は付けないこと（付けると `search_with_grok` が発火しなくなる）。Production 運用に寄せるなら `DeepSeek-V3.1`（128k）や `MiniMax-M2.7`（192k） |
+
+`GROQ_REASONING_EFFORT=default`（thinking 有効）にする場合、reasoning トークンが出力予算を消費するため
+`max_tokens=1000` では応答が途中で切れうる。引き上げとセットで変更する。
+
 ## Message Processing Flow
 
 ```

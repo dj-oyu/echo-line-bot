@@ -1,10 +1,10 @@
 # LINE AI チャットボット
 
-SambaNova Cloud の DeepSeek-V3 モデルと xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
+Groq の Qwen3.6 モデルと xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
 
 ## 機能
 
-- **デュアル AI 機能**: SambaNova Cloud の DeepSeek-V3-0324 モデル + xAI Grok による高性能な会話
+- **デュアル AI 機能**: Groq の Qwen3.6-27B（既定）/ SambaNova Cloud の DeepSeek-V3.2 + xAI Grok-4.6 による高性能な会話
 - **検索連携機能**: Grok の Live Search API によるリアルタイム情報検索
 - **会話記憶**: DynamoDB を使用した文脈を考慮した会話継続（30分間）
 - **関西弁キャラクター**: 「あいちゃん」として関西弁で親しみやすく応答
@@ -277,7 +277,7 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 
 ## AI の特徴
 
-- **デュアルAIエンジン**: SambaNova DeepSeek-V3（基本会話）+ xAI Grok（検索連携）
+- **デュアルAIエンジン**: Groq Qwen3.6-27B / SambaNova DeepSeek-V3.2（基本会話）+ xAI Grok-4.6（検索連携）
 - **キャラクター**: 関西弁で話す「あいちゃん」
 - **会話記憶**: 30分間の会話セッションを維持
 - **検索連携**: リアルタイム情報検索とTool Calling
@@ -302,8 +302,9 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 - **jest** (v29.7.0): テストフレームワーク
 
 ### 外部API
-- **SambaNova Cloud API**: DeepSeek-V3-0324モデル
-- **xAI API**: Grok Live Search機能
+- **Groq API**: qwen/qwen3.6-27b モデル（既定バックエンド）
+- **SambaNova Cloud API**: DeepSeek-V3.2 モデル
+- **xAI API**: Grok-4.6 Agent Tools（web_search）
 
 ## トラブルシューティング
 
