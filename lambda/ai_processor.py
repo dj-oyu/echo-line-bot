@@ -4,10 +4,10 @@ import os
 import re
 from datetime import datetime, timezone
 
-import boto3
 import openai
 import pytz
-from boto3.dynamodb.conditions import Key
+
+import line_messaging
 from markdown_to_line import render_to_line
 
 logger = logging.getLogger()
@@ -17,6 +17,7 @@ logger.setLevel(logging.INFO)
 SAMBA_NOVA_API_KEY_NAME = os.environ.get("SAMBA_NOVA_API_KEY_NAME", "")
 GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
 CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
+CHANNEL_ACCESS_TOKEN_NAME = os.environ.get("CHANNEL_ACCESS_TOKEN_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
 SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
@@ -44,32 +45,6 @@ GROQ_REASONING_EFFORT = os.environ.get("GROQ_REASONING_EFFORT") or default_reaso
     GROQ_MODEL
 )
 
-# AWS clients
-dynamodb = boto3.resource("dynamodb")
-conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
-secretsmanager = boto3.client("secretsmanager")
-
-
-def get_secret(secret_name: str) -> str:
-    """Get secret value from AWS Secrets Manager.
-
-    Args:
-        secret_name: Name of the secret to retrieve
-
-    Returns:
-        The secret value as a string
-
-    Raises:
-        Exception: If secret retrieval fails
-    """
-    try:
-        response = secretsmanager.get_secret_value(SecretId=secret_name)
-        return response["SecretString"]
-    except Exception as e:
-        logger.error(f"Error retrieving secret {secret_name}: {e}")
-        raise
-
-
 # SambaNova client
 sambanova_client = None
 
@@ -82,7 +57,7 @@ def get_sambanova_client() -> openai.OpenAI:
     """
     global sambanova_client
     if sambanova_client is None:
-        sambanova_api_key = get_secret(SAMBA_NOVA_API_KEY_NAME)
+        sambanova_api_key = line_messaging.get_secret(SAMBA_NOVA_API_KEY_NAME)
         sambanova_client = openai.OpenAI(
             api_key=sambanova_api_key,
             base_url="https://api.sambanova.ai/v1",
@@ -102,7 +77,7 @@ def get_groq_client() -> openai.OpenAI:
     """
     global groq_client
     if groq_client is None:
-        groq_api_key = get_secret(GROQ_API_KEY_NAME)
+        groq_api_key = line_messaging.get_secret(GROQ_API_KEY_NAME)
         groq_client = openai.OpenAI(
             api_key=groq_api_key,
             base_url="https://api.groq.com/openai/v1",
@@ -117,41 +92,67 @@ def strip_mentions(text: str) -> str:
     return re.sub(r"\s+", " ", cleaned).strip()
 
 
+def _derive_retry_key(execution_name: str | None, purpose: str) -> str | None:
+    """Derive a stable per-purpose retry key from the execution name.
+
+    One execution sends up to two messages, and X-Line-Retry-Key must differ
+    between them or LINE treats the second as a duplicate of the first.
+
+    Args:
+        execution_name: Step Functions execution name (a UUID)
+        purpose: Distinguishes the messages sent within one execution
+
+    Returns:
+        A UUID string, or None when there is no execution name to derive from
+    """
+    if not execution_name:
+        return None
+    import uuid
+
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{execution_name}/{purpose}"))
+
+
 def lambda_handler(event: dict, _context) -> dict:
     logger.info("AI Processor received event: %s", json.dumps(event, default=str))
 
     try:
         user_id = event["userId"]
         conversation_context = event["conversationContext"]
+        retry_key = event.get("executionName")
 
-        # Get AI response from SambaNova
         response_payload = get_ai_response(conversation_context["messages"])
-
-        # Merge the original event with the new response payload
-        # This ensures we pass through all necessary info like userId, sourceType, quote_token, etc.
         event.update(response_payload)
 
-        # If it's a normal response, add it to the conversation history now
-        if not event.get("hasToolCall"):
-            ai_response = event.get("aiResponse")
-            conversation_context["messages"].append(
-                {
-                    "role": "assistant",
-                    "content": ai_response,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-            # No need to clean up here, can be done after final response
-            save_conversation_context(user_id, conversation_context)
+        if event.get("hasToolCall"):
+            # A search runs for ~60 s. Tell the user something is happening,
+            # with the typing indicator, before handing off to Grok. Best
+            # effort: a cosmetic notice must not cost the tool call decision
+            # this stage just spent ~25 s computing.
+            try:
+                line_messaging.push_text(
+                    event,
+                    INTERIM_MESSAGE,
+                    retry_key=_derive_retry_key(retry_key, "interim"),
+                    show_loading=True,
+                )
+            except Exception as e:
+                logger.error("Failed to send interim message: %s", e)
+            return event
 
+        # Direct answer: this stage owns delivery, so the workflow ends here.
+        line_messaging.push_text(event, event["aiResponse"], retry_key=retry_key)
+        line_messaging.append_and_save(user_id, conversation_context, event["aiResponse"])
         return event
 
     except Exception as e:
-        logger.error(f"Error in AI processing: {e}")
-        # Return a failure payload
+        # Raising hands the execution to the Catch, which notifies the user.
+        logger.error("Error in AI processing: %s", e)
         event["error"] = str(e)
-        event["aiResponse"] = "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
-        return event
+        raise
+
+
+INTERIM_MESSAGE = "なんやややこしい質問やな～ 今こびとさんに調べてきてもろとるから待っとき！"
+FAILURE_MESSAGE = "うわ〜😭 あいちゃんなんか失敗してもうた！ごめんやで〜"
 
 
 def get_ai_response(messages: list) -> dict:
@@ -344,22 +345,6 @@ def prepare_messages_for_api(messages: list) -> list:
     return api_messages
 
 
-def save_conversation_context(user_id: str, conversation_context: dict) -> None:
-    """Save conversation context to DynamoDB.
-
-    Args:
-        user_id: User ID for the conversation
-        conversation_context: Conversation data to save
-    """
-    try:
-        conversation_context["lastActivity"] = datetime.now(timezone.utc).isoformat()
-        conversation_table.put_item(Item=conversation_context)
-        logger.info(f"Saved conversation context for user {user_id}")
-    except Exception as e:
-        logger.error(f"Error saving conversation context: {e}")
-        raise
-
-
 def delete_conversation_history(user_id: str) -> bool:
     """Delete all conversation history for a given user.
 
@@ -371,10 +356,14 @@ def delete_conversation_history(user_id: str) -> bool:
     """
     try:
         # Query all items for the user
-        response = conversation_table.query(KeyConditionExpression=Key("userId").eq(user_id))
+        from boto3.dynamodb.conditions import Key
+
+        response = line_messaging.conversation_table().query(
+            KeyConditionExpression=Key("userId").eq(user_id)
+        )
 
         # Delete each item using only the partition key (userId)
-        with conversation_table.batch_writer() as batch:
+        with line_messaging.conversation_table().batch_writer() as batch:
             for item in response["Items"]:
                 batch.delete_item(Key={"userId": str(item["userId"])})
 

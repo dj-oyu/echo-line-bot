@@ -18,16 +18,19 @@ Groq の Qwen3.6 モデルと xAI の Grok を使用した、会話記憶機能�
 ```
 LINE Platform → API Gateway → Webhook Lambda → Step Functions
                                      ↓                ↓
-                                DynamoDB         AI Processor Lambda
-                               (会話履歴)              ↓
-                                              Tool Call判定
-                                            ↙          ↘
-                                 Interim Response    Direct Response
-                                     Lambda           Lambda
-                                       ↓               ↓
-                                 Grok Processor   LINE Push API
-                                    Lambda           ↓
-                                       ↓         LINE User
+                                DynamoDB       ProcessWithLLM
+                               (会話履歴)       (AiProcessor)
+                                                      ↓
+                                              CheckForToolCall
+                                            ↙                ↘
+                             検索不要：この場で返信      検索が必要：中間通知を送り
+                                    （終了）             ProcessWithGrok へ
+                                                              ↓
+                                                    回答を送信して終了
+                                                       (GrokProcessor)
+
+  ※ 各 Task は Catch で NotifyFailure に接続。応答前に落ちた場合のみ
+    ユーザーに謝罪を通知する。
                                 Final Response
                                    Lambda
                                       ↓
@@ -39,12 +42,14 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 ### AWS リソース構成
 
 - **DynamoDB テーブル**: `line-bot-conversations` - 会話履歴保存（TTL付き）
-- **Lambda 関数** (5個):
-  - `WebhookHandler`: 高速 webhook 応答処理とStep Functions起動
-  - `AiProcessor`: SambaNova AI応答生成とツール呼び出し判定（60秒タイムアウト）
-  - `InterimResponseSender`: Grok検索時の中間応答送信（10秒タイムアウト）
-  - `GrokProcessor`: xAI Grok検索処理（60秒タイムアウト）
-  - `ResponseSender`: LINE Push API経由での最終応答送信（10秒タイムアウト）
+- **Lambda 関数** (4個):
+  - `WebhookHandler`: 署名検証、`/forget` 処理、Step Functions起動（10秒タイムアウト）
+  - `AiProcessor`: 応答生成とツール呼び出し判定。直接応答ならこの場で送信して終了（60秒タイムアウト）
+  - `GrokProcessor`: xAI Grok検索。回答を送信し履歴に保存して終了（180秒タイムアウト）
+  - `ResponseSender`: Step Functions の Catch 専用。応答前に落ちた場合の通知のみ（10秒タイムアウト）
+
+  メッセージの送信は、それを生成した段が行う。専用の送信段を挟むと
+  1リクエストごとに約3秒のコールドスタートを払うため。
 - **Lambda Layer**: 事前ビルド済み共通依存関係（line-bot-sdk, openai, boto3, xai-sdk, pytz）
 - **Step Functions**: 条件分岐付きAI処理ワークフローの管理
 - **API Gateway**: LINE webhook用REST APIエンドポイント
@@ -56,10 +61,11 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 ```
 ├── lambda/
 │   ├── webhook_handler.py       # Webhook 処理ハンドラー
-│   ├── ai_processor.py          # SambaNova AI 応答生成処理
-│   ├── interim_response_sender.py # Grok検索時の中間応答送信
-│   ├── grok_processor.py        # xAI Grok検索処理
-│   ├── response_sender.py       # LINE 最終応答送信処理
+│   ├── ai_processor.py          # 応答生成・ツール判定・直接応答の送信
+│   ├── grok_processor.py        # xAI Grok検索と検索結果の送信
+│   ├── response_sender.py       # 失敗通知（Step Functions の Catch 先）
+│   ├── line_messaging.py        # LINE送信と会話履歴永続化の共通処理
+│   ├── markdown_to_line.py      # Markdown を LINE 向け平文に変換
 │   └── layer-dist/              # Lambda Layer ビルド出力（.gitignore済み）
 ├── scripts/
 │   └── build-layer.sh          # Lambda Layer 依存関係ビルドスクリプト
@@ -245,19 +251,25 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 ### AI処理フロー
 5. **AI Processor Lambda**が会話履歴を取得し、Groq API（既定。`AI_BACKEND` で SambaNova に切替可）で応答を生成
 6. Tool Call（検索要求）の有無を判定
-   - **Tool Call あり**: 中間応答→Grok検索→最終応答
+   - **Tool Call あり**: 中間通知→Grok検索→検索結果を送信
    - **Tool Call なし**: 直接応答
 
 ### Tool Call ありの場合
-7a. **Interim Response Sender Lambda**が「検索中...」の中間応答を送信
-8a. **Grok Processor Lambda**がxAI Grok の Agent Tools API（`web_search`）で情報検索
-9a. **Response Sender Lambda**が検索結果を含む最終応答を送信
+7a. **AI Processor**が「検索中...」の中間通知とローディング表示を送信
+8a. **Grok Processor Lambda**がxAI Grok の Agent Tools API（`web_search`）で情報検索し、
+    検索結果を送信して会話履歴に保存。ここでワークフローは終了
 
 ### Tool Call なしの場合
-7b. **Response Sender Lambda**が直接応答を送信
+7b. **AI Processor**がその場で応答を送信し、会話履歴に保存。ここで終了
+
+### 失敗した場合
+いずれかの段が応答を送る前に落ちた場合のみ、Step Functions の Catch が
+**Response Sender Lambda** に流し、謝罪メッセージを送信する。
 
 ### 共通処理
-10. 会話履歴がDynamoDB に保存（30分間のTTL）
+- 会話履歴はDynamoDB に保存（30分間のTTL、直近20件のみ保持）
+- 送信には実行名由来の `X-Line-Retry-Key` を付与し、Step Functions の
+  リトライで同じ返信が二重に届かないようにしている
 
 ## 環境変数とSecrets
 

@@ -269,10 +269,23 @@ def start_ai_processing(user_id, conversation_context, source_type, source_id, q
         if quote_token and source_type in ("group", "room"):
             input_data["quote_token"] = quote_token
 
+        # Naming the execution gives every message a stable id, reused as the
+        # LINE X-Line-Retry-Key so a Step Functions retry cannot deliver the
+        # same reply twice.
+        import uuid
+
+        execution_name = str(uuid.uuid4())
+        input_data["executionName"] = execution_name
+
         response = stepfunctions.start_execution(
-            stateMachineArn=STEP_FUNCTION_ARN, input=json.dumps(input_data, default=str)
+            stateMachineArn=STEP_FUNCTION_ARN,
+            name=execution_name,
+            input=json.dumps(input_data, default=str),
         )
 
         logger.info(f"Started Step Functions execution: {response['executionArn']}")
     except Exception as e:
+        # Swallowing this returned 200 to LINE while the user got permanent
+        # silence. Raising lets LINE retry the webhook.
         logger.error(f"Error starting Step Functions: {e}")
+        raise

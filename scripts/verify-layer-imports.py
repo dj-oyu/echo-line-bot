@@ -22,7 +22,6 @@ import unittest.mock
 HANDLERS = [
     "ai_processor",
     "grok_processor",
-    "interim_response_sender",
     "response_sender",
     "webhook_handler",
 ]

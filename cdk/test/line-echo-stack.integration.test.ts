@@ -69,12 +69,11 @@ describe('LINE Echo Stack - Integration Tests', () => {
       
       // Check that the state machine has proper Lambda function references
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
-      expect(Object.keys(lambdaFunctions)).toHaveLength(5);
+      expect(Object.keys(lambdaFunctions)).toHaveLength(4);
       
       // Verify each handler exists
       const handlers = Object.values(lambdaFunctions).map((func: any) => func.Properties.Handler);
       expect(handlers).toContain('ai_processor.lambda_handler');
-      expect(handlers).toContain('interim_response_sender.lambda_handler');
       expect(handlers).toContain('grok_processor.lambda_handler');
       expect(handlers).toContain('response_sender.lambda_handler');
     });
@@ -85,7 +84,9 @@ describe('LINE Echo Stack - Integration Tests', () => {
       // Then: Conversation-aware functions should have DynamoDB table name and permissions
       
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
-      const conversationFunctions = ['webhook_handler', 'ai_processor', 'response_sender'];
+      // response_sender only notifies failures now; grok_processor records the
+      // answer it delivers, so it took over the table access.
+      const conversationFunctions = ['webhook_handler', 'ai_processor', 'grok_processor'];
       
       conversationFunctions.forEach(handlerName => {
         const func = Object.values(lambdaFunctions).find((f: any) => 
@@ -326,12 +327,11 @@ describe('LINE Echo Stack - Integration Tests', () => {
       
       // Check that the state machine has proper Lambda function references
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
-      expect(Object.keys(lambdaFunctions)).toHaveLength(5);
+      expect(Object.keys(lambdaFunctions)).toHaveLength(4);
       
       // Verify each handler exists
       const handlers = Object.values(lambdaFunctions).map((func: any) => func.Properties.Handler);
       expect(handlers).toContain('ai_processor.lambda_handler');
-      expect(handlers).toContain('interim_response_sender.lambda_handler');
       expect(handlers).toContain('grok_processor.lambda_handler');
       expect(handlers).toContain('response_sender.lambda_handler');
       expect(handlers).toContain('webhook_handler.lambda_handler');
@@ -351,7 +351,7 @@ describe('LINE Echo Stack - Integration Tests', () => {
       
       // Check that all Lambda functions exist for async processing
       const lambdaFunctions = template.findResources('AWS::Lambda::Function');
-      expect(Object.keys(lambdaFunctions)).toHaveLength(5);
+      expect(Object.keys(lambdaFunctions)).toHaveLength(4);
       
       // Verify that Step Functions has proper IAM permissions to invoke Lambda functions
       template.hasResourceProperties('AWS::IAM::Policy', {

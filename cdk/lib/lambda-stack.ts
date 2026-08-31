@@ -168,12 +168,14 @@ export class LineEchoStack extends cdk.Stack {
     const aiProcessorLambda = new lambda.Function(this, 'AiProcessor', {
       ...baseConfig,
       handler: 'ai_processor.lambda_handler',
-      description: 'Processes user messages using SambaNova AI',
+      description: 'Routes a message: answers directly or requests a web search',
       timeout: cdk.Duration.seconds(60),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
+        // Used only when a tool call fires, to tell the user a search started
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
         SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
         GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
@@ -186,17 +188,7 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);
     secrets.groqApiKeySecret.grantRead(aiProcessorLambda);
-
-    const interimResponseSenderLambda = new lambda.Function(this, 'InterimResponseSender', {
-      ...baseConfig,
-      handler: 'interim_response_sender.lambda_handler',
-      description: 'Sends interim response while processing complex queries',
-      timeout: cdk.Duration.seconds(10),
-      environment: {
-        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
-      },
-    });
-    secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
+    secrets.lineChannelAccessToken.grantRead(aiProcessorLambda);
 
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
       ...baseConfig,
@@ -206,17 +198,20 @@ export class LineEchoStack extends cdk.Stack {
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
         XAI_MODEL: process.env.XAI_MODEL || 'grok-4.6',
+        // This stage now delivers the answer and records it
+        CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
+        CONVERSATION_TABLE_NAME: conversationTable.tableName,
       },
     });
     secrets.xaiApiKeySecret.grantRead(grokProcessorLambda);
+    secrets.lineChannelAccessToken.grantRead(grokProcessorLambda);
 
     const responseSenderLambda = new lambda.Function(this, 'ResponseSender', {
       ...baseConfig,
       handler: 'response_sender.lambda_handler',
-      description: 'Sends final response to LINE and saves conversation history',
+      description: 'Notifies the user when a stage failed before it could reply',
       timeout: cdk.Duration.seconds(10),
       environment: {
-        CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
       },
     });
@@ -225,7 +220,6 @@ export class LineEchoStack extends cdk.Stack {
     return {
       webhookLambda,
       aiProcessorLambda,
-      interimResponseSenderLambda,
       grokProcessorLambda,
       responseSenderLambda,
     };
@@ -240,7 +234,7 @@ export class LineEchoStack extends cdk.Stack {
   ): void {
     conversationTable.grantReadWriteData(lambdaFunctions.webhookLambda);
     conversationTable.grantReadWriteData(lambdaFunctions.aiProcessorLambda);
-    conversationTable.grantReadWriteData(lambdaFunctions.responseSenderLambda);
+    conversationTable.grantReadWriteData(lambdaFunctions.grokProcessorLambda);
   }
 
   /**
@@ -249,17 +243,19 @@ export class LineEchoStack extends cdk.Stack {
   private createStepFunctionsWorkflow(
     lambdaFunctions: ReturnType<typeof this.createLambdaFunctions>
   ): stepfunctions.StateMachine {
-    const processAiTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithSambaNova', {
+    const processAiTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithLLM', {
       lambdaFunction: lambdaFunctions.aiProcessorLambda,
       resultPath: '$.aiProcessorResult',
       resultSelector: { 'Payload.$': '$.Payload' },
     });
 
-    const sendInterimResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendInterimResponse', {
-      lambdaFunction: lambdaFunctions.interimResponseSenderLambda,
-      inputPath: '$.aiProcessorResult.Payload',
-      resultPath: stepfunctions.JsonPath.DISCARD,
+    // Reached only through a Catch: the stage that owed the user a reply died
+    // before sending one. Its cold start lands on the failure path only.
+    const notifyFailureTask = new stepfunctionsTasks.LambdaInvoke(this, 'NotifyFailure', {
+      lambdaFunction: lambdaFunctions.responseSenderLambda,
     });
+
+    processAiTask.addCatch(notifyFailureTask, { resultPath: '$.error' });
 
     const processWithGrokTask = new stepfunctionsTasks.LambdaInvoke(this, 'ProcessWithGrok', {
       lambdaFunction: lambdaFunctions.grokProcessorLambda,
@@ -267,23 +263,17 @@ export class LineEchoStack extends cdk.Stack {
       resultPath: '$.grokProcessorResult',
       resultSelector: { 'Payload.$': '$.Payload' },
     });
+    processWithGrokTask.addCatch(notifyFailureTask, { resultPath: '$.error' });
 
-    const sendFinalResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendFinalResponse', {
-      lambdaFunction: lambdaFunctions.responseSenderLambda,
-      inputPath: '$.grokProcessorResult.Payload',
-    });
-
-    const sendDirectResponseTask = new stepfunctionsTasks.LambdaInvoke(this, 'SendDirectResponse', {
-      lambdaFunction: lambdaFunctions.responseSenderLambda,
-      inputPath: '$.aiProcessorResult.Payload',
-    });
-
+    // The Choice stays: it is what keeps an ordinary message out of a ~60 s web
+    // search. It costs nothing — the measured transition is 0.00 s.
+    // Each branch ends at the stage that delivers the message.
     const choice = new stepfunctions.Choice(this, 'CheckForToolCall')
       .when(
         stepfunctions.Condition.booleanEquals('$.aiProcessorResult.Payload.hasToolCall', true),
-        sendInterimResponseTask.next(processWithGrokTask).next(sendFinalResponseTask)
+        processWithGrokTask
       )
-      .otherwise(sendDirectResponseTask);
+      .otherwise(new stepfunctions.Succeed(this, 'AnsweredDirectly'));
 
     return new stepfunctions.StateMachine(this, 'AIProcessingWorkflow', {
       definitionBody: stepfunctions.DefinitionBody.fromChainable(processAiTask.next(choice)),

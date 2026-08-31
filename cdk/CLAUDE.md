@@ -35,7 +35,6 @@ cdk/
 | ConversationHistory | DynamoDB Table | 会話履歴保存（TTL付き、PAY_PER_REQUEST） |
 | WebhookHandler | Lambda | LINE webhook受信、Step Functions起動 |
 | AiProcessor | Lambda | SambaNova/Groq AI処理（60秒タイムアウト） |
-| InterimResponseSender | Lambda | 処理中の中間レスポンス送信 |
 | GrokProcessor | Lambda | xAI Grok検索処理（180秒タイムアウト） |
 | ResponseSender | Lambda | 最終レスポンス送信、履歴保存 |
 | DependenciesLayer | Lambda Layer | Python依存関係 |
@@ -84,34 +83,29 @@ pnpm run cdk destroy
 AI処理ワークフローの流れ:
 
 ```
-┌─────────────────┐
-│  ProcessWithAI  │  (ai_processor)
-└────────┬────────┘
+┌──────────────────┐
+│  ProcessWithLLM  │  (ai_processor)
+│                  │  直接応答ならここで送信して終了
+└────────┬─────────┘  検索が必要なら中間通知を送る
          │
-    ┌────▼────┐
-    │ Choice  │  hasToolCall?
-    └────┬────┘
-         │
+    ┌────▼─────────────┐
+    │ CheckForToolCall │  hasToolCall?
+    └────┬─────────────┘
     ┌────┴────┐
-    │         │
    true     false
     │         │
     ▼         ▼
-┌────────┐ ┌────────────────┐
-│Interim │ │ SendDirect     │
-│Response│ │ Response       │
-└───┬────┘ └────────────────┘
-    │
-    ▼
-┌────────────┐
-│ProcessGrok │  (grok_processor)
-└─────┬──────┘
-      │
-      ▼
-┌─────────────┐
-│SendFinal    │  (response_sender)
-│Response     │
-└─────────────┘
+┌──────────────┐  ┌──────────────────┐
+│ProcessWithGrok│  │ AnsweredDirectly │  (Succeed)
+│(grok_processor)│ └──────────────────┘
+│回答を送信・保存 │
+└──────────────┘
+
+各 Task には Catch を設定し、応答を送る前に落ちた場合のみ
+NotifyFailure (response_sender) が謝罪メッセージを送る。
+
+送信は生成した段が行う。専用の送信段は1リクエストごとに
+約3秒のコールドスタートを要したため廃止した。
 ```
 
 ## Testing
@@ -145,9 +139,8 @@ Lambda関数に渡される環境変数:
 |--------|-----------|
 | WebhookHandler | CONVERSATION_TABLE_NAME, CHANNEL_SECRET_NAME, CHANNEL_ACCESS_TOKEN_NAME, STEP_FUNCTION_ARN |
 | AiProcessor | CONVERSATION_TABLE_NAME, SAMBA_NOVA_API_KEY_NAME, GROQ_API_KEY_NAME, AI_BACKEND, SAMBANOVA_MODEL, GROQ_MODEL, GROQ_REASONING_EFFORT |
-| InterimResponseSender | CHANNEL_ACCESS_TOKEN_NAME |
-| GrokProcessor | XAI_API_KEY_SECRET_NAME, XAI_MODEL |
-| ResponseSender | CONVERSATION_TABLE_NAME, CHANNEL_ACCESS_TOKEN_NAME |
+| GrokProcessor | XAI_API_KEY_SECRET_NAME, XAI_MODEL, CHANNEL_ACCESS_TOKEN_NAME, CONVERSATION_TABLE_NAME |
+| ResponseSender | CHANNEL_ACCESS_TOKEN_NAME |
 
 ## Related Documentation
 
