@@ -66,7 +66,7 @@ CDKで参照:
 ```typescript
 new lambda.LayerVersion(this, 'DependenciesLayer', {
   code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
-  compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
+  compatibleRuntimes: [PYTHON_RUNTIME],
 });
 ```
 

@@ -120,7 +120,7 @@ test('Lambda function created with correct runtime', () => {
   const template = Template.fromStack(stack);
 
   template.hasResourceProperties('AWS::Lambda::Function', {
-    Runtime: 'python3.12',
+    Runtime: 'python3.14',
   });
 });
 ```

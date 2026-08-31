@@ -9,6 +9,28 @@ import * as path from 'path';
 import { Construct } from 'constructs';
 
 /**
+ * Python 3.14 runtime.
+ *
+ * aws-cdk-lib 2.202.0 only ships constants up to PYTHON_3_13, so the runtime
+ * is declared by name. Replace with lambda.Runtime.PYTHON_3_14 once the CDK
+ * dependency is upgraded.
+ */
+const PYTHON_RUNTIME = new lambda.Runtime('python3.14', lambda.RuntimeFamily.PYTHON, {
+  supportsInlineCode: true,
+});
+
+/**
+ * Paths excluded from the Lambda function asset.
+ *
+ * `layer-dist` holds the dependency layer's contents, which are already
+ * mounted at /opt/python by the layer itself. Bundling them into every
+ * function package too made each package 33 MB instead of ~50 KB, slowing
+ * cold starts and eating into the 250 MB unzipped function+layers limit.
+ * Excluding tests and caches also keeps the asset hash stable across machines.
+ */
+const FUNCTION_ASSET_EXCLUDES = ['layer-dist', 'tests', '**/__pycache__'];
+
+/**
  * LINE Echo Bot Stack
  * 
  * This stack creates a serverless LINE bot with AI processing capabilities using:
@@ -106,7 +128,7 @@ export class LineEchoStack extends cdk.Stack {
   private createDependenciesLayer(): lambda.LayerVersion {
     return new lambda.LayerVersion(this, 'DependenciesLayer', {
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda/layer-dist')),
-      compatibleRuntimes: [lambda.Runtime.PYTHON_3_12],
+      compatibleRuntimes: [PYTHON_RUNTIME],
       description: 'Python dependencies for LINE bot Lambda functions',
     });
   }
@@ -119,9 +141,14 @@ export class LineEchoStack extends cdk.Stack {
     secrets: ReturnType<typeof this.createSecretReferences>,
     dependenciesLayer: lambda.LayerVersion
   ) {
+    // Memory is deliberately left at the 128 MB default. CloudWatch shows all
+    // five functions peaking at 107-122 MB, which is tight, but zero OOM events
+    // have occurred. Raise it only if the logs actually show one.
     const baseConfig = {
-      runtime: lambda.Runtime.PYTHON_3_12,
-      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda')),
+      runtime: PYTHON_RUNTIME,
+      code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda'), {
+        exclude: FUNCTION_ASSET_EXCLUDES,
+      }),
       layers: [dependenciesLayer],
     };
 
@@ -129,12 +156,17 @@ export class LineEchoStack extends cdk.Stack {
       ...baseConfig,
       handler: 'webhook_handler.lambda_handler',
       description: 'Handles LINE webhook events and initiates AI processing',
+      // The CDK default is 3 s, but cold start init alone measured 2.8-3.2 s,
+      // so cold invocations were being killed before they could start the
+      // Step Function and LINE got no response. Warm invocations take ~0.6 s;
+      // this ceiling only exists to survive a cold start.
+      timeout: cdk.Duration.seconds(10),
       environment: {
         CONVERSATION_TABLE_NAME: conversationTable.tableName,
         CHANNEL_SECRET_NAME: secrets.lineChannelSecret.secretName,
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
         STEP_FUNCTION_ARN: '', // Placeholder, will be populated later
-        // Required for ai_processor import (used by /forget command)
+        // Read only when /forget triggers the lazy ai_processor import
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
       },
@@ -175,10 +207,6 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.lineChannelAccessToken.grantRead(interimResponseSenderLambda);
 
-    // Note: observed memory usage ~110/128 MB on long Grok responses
-    // (xai_sdk + long response body + markdown-it AST). If OOM occurs,
-    // bump memorySize to 256 here. Cost impact is negligible since billed
-    // duration often shrinks proportionally with more memory.
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
       ...baseConfig,
       handler: 'grok_processor.lambda_handler',

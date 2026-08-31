@@ -8,7 +8,7 @@ alwaysApply: false
 
 ## Runtime & Tools
 
-- **Python**: 3.12
+- **Python**: 3.14
 - **Package Manager**: uv
 - **Dependencies**: Defined in `pyproject.toml`
 

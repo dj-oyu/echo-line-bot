@@ -5,8 +5,6 @@ import os
 import re
 from datetime import datetime, timedelta, timezone
 
-# Import the ai_processor module
-import ai_processor
 import boto3
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
@@ -129,7 +127,12 @@ def handle_message(event):
     sanitized_message = strip_mentions(user_message)
     # Check for forget command after stripping mentions
     if sanitized_message.strip().lower() in ["/forget", "/忘れて"]:
-        if ai_processor.delete_conversation_history(user_id):
+        # Imported here rather than at module scope: ai_processor pulls in
+        # openai and pytz, which measured ~750 ms of import time on every
+        # webhook while only /forget ever needs them.
+        from ai_processor import delete_conversation_history
+
+        if delete_conversation_history(user_id):
             reply_text = "会話の履歴を削除しました。"
         else:
             reply_text = "履歴の削除に失敗しました。"

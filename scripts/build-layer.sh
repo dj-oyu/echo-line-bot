@@ -31,7 +31,14 @@ cd "$PROJECT_ROOT"
 
 # Install dependencies using uv into the layer directory
 echo "📦 Installing Python dependencies with uv..."
-uv export --no-dev --no-hashes | uv pip install --target "$LAYER_PYTHON_DIR" -r -
+# Pin the target interpreter and platform so the layer matches the Lambda
+# runtime regardless of the local Python version (compiled wheels are
+# ABI-specific: pydantic-core, grpcio and aiohttp ship cp314 binaries).
+uv export --no-dev --no-hashes | uv pip install \
+    --target "$LAYER_PYTHON_DIR" \
+    --python-version 3.14 \
+    --python-platform x86_64-manylinux2014 \
+    -r -
 
 # Remove unnecessary files to reduce layer size
 echo "🗑️ Removing unnecessary files..."

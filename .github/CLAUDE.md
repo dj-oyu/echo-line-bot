@@ -25,7 +25,7 @@ PRがmainブランチに向けて作成された時に実行。
 1. Checkout code
 2. Install pnpm (latest)
 3. Setup Node.js 22 (cache: pnpm)
-4. Setup Python 3.12
+4. Setup Python 3.14
 5. Install uv (latest)
 6. `uv sync` - Python依存関係
 7. `./scripts/build-layer.sh` - Lambda Layer

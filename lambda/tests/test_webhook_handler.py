@@ -153,17 +153,18 @@ class TestWebhookHandler(unittest.TestCase):
         with (
             patch("webhook_handler.ApiClient") as mock_api_client,
             patch("webhook_handler.MessagingApi") as mock_messaging_api,
-            patch("webhook_handler.ai_processor") as mock_ai,
+            # Patched at the source module: webhook_handler imports it lazily
+            patch("ai_processor.delete_conversation_history") as mock_delete,
         ):
             mock_line_api = Mock()
             mock_messaging_api.return_value = mock_line_api
             mock_api_client.return_value.__enter__.return_value = mock_api_client.return_value
-            mock_ai.delete_conversation_history.return_value = True
+            mock_delete.return_value = True
 
             handle_message(mock_event)
 
             # Verify delete was called
-            mock_ai.delete_conversation_history.assert_called_once_with("user123")
+            mock_delete.assert_called_once_with("user123")
 
             # Verify reply was sent
             mock_line_api.reply_message.assert_called_once()
