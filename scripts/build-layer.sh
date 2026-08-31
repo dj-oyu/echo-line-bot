@@ -46,9 +46,10 @@ find "$LAYER_PYTHON_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/nu
 find "$LAYER_PYTHON_DIR" -type f -name "*.pyc" -delete 2>/dev/null || true
 find "$LAYER_PYTHON_DIR" -type f -name "*.pyo" -delete 2>/dev/null || true
 
-# Remove dist-info directories EXCEPT opentelemetry (needed for entry_points discovery)
-echo "🗑️ Removing dist-info (preserving opentelemetry)..."
-find "$LAYER_PYTHON_DIR" -type d -name "*.dist-info" ! -name "opentelemetry*.dist-info" -exec rm -rf {} + 2>/dev/null || true
+# dist-info is deliberately kept. Stripping it saved 2.9 MB of a 97 MB layer
+# while breaking any package that looks itself (or a dependency) up through
+# importlib.metadata at runtime: openai 3.x does exactly that for httpx2, and
+# the stripped layer failed with "No package metadata was found for httpx2".
 
 # Show layer size
 LAYER_SIZE=$(du -sh "$LAYER_OUTPUT_DIR" | cut -f1)

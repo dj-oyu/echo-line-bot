@@ -47,6 +47,12 @@ jobs:
       run: |
         ./scripts/build-layer.sh
         
+    - name: Verify handlers import against the layer
+      # Uses the setup-python interpreter, not the uv virtualenv, so only what
+      # the layer actually ships is importable — the same condition as Lambda.
+      run: |
+        python scripts/verify-layer-imports.py
+        
     - name: Run Python tests
       # Handler modules read these at import time; the values are never used
       # because every test that touches AWS mocks the client.
