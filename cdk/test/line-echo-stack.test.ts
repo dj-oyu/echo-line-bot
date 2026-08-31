@@ -220,7 +220,7 @@ describe('LINE Echo Stack', () => {
 
         const envVars = aiProcessor.Properties.Environment.Variables;
         expect(envVars.AI_BACKEND).toBe('groq');
-        expect(envVars.GROQ_MODEL).toBe('qwen/qwen3.6-27b');
+        expect(envVars.GROQ_MODEL).toBe('openai/gpt-oss-20b');
         expect(envVars.SAMBANOVA_MODEL).toBe('DeepSeek-V3.2');
         expect(envVars).not.toHaveProperty('GROQ_REASONING_EFFORT');
       } finally {

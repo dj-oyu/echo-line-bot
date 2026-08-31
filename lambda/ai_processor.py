@@ -20,7 +20,7 @@ CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
 SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
 def default_reasoning_effort(model: str) -> str:
