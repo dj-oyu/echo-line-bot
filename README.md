@@ -81,7 +81,7 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 
 ## 前提条件
 
-- Node.js 20+ (CDK 用)
+- Node.js 22+ (CDK 用。pnpm 11 が Node >= 22.13 を要求)
 - Python 3.12+
 - pnpm (パッケージマネージャー)
 - uv (Python パッケージマネージャー)

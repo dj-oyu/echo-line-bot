@@ -19,7 +19,7 @@ echo-line-bot/
 
 | Component | Technology |
 |-----------|------------|
-| Runtime | Python 3.12, Node.js 20 |
+| Runtime | Python 3.12, Node.js 22 |
 | Package Managers | uv (Python), pnpm (CDK) |
 | Infrastructure | AWS CDK (TypeScript) |
 | Cloud Services | Lambda, API Gateway, DynamoDB, Step Functions, Secrets Manager |

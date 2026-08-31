@@ -7,7 +7,7 @@ AWS CDKを使用したインフラストラクチャ定義。TypeScriptで記述
 - **Language**: TypeScript
 - **Package Manager**: pnpm
 - **CDK Version**: aws-cdk-lib
-- **Node.js**: 20
+- **Node.js**: 22
 
 ## Directory Structure
 

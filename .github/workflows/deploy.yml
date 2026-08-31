@@ -19,12 +19,13 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
       with:
-        version: latest
+        # Version comes from cdk/package.json's packageManager field
+        package_json_file: cdk/package.json
         
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'pnpm'
         cache-dependency-path: cdk/pnpm-lock.yaml
         
@@ -83,12 +84,13 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
       with:
-        version: latest
+        # Version comes from cdk/package.json's packageManager field
+        package_json_file: cdk/package.json
         
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'pnpm'
         cache-dependency-path: cdk/pnpm-lock.yaml
         
