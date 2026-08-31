@@ -25,6 +25,7 @@
     "dotenv": "^17.2.3"
   },
   "pnpm": {
+    "comment": "pnpm 11 reads overrides from pnpm-workspace.yaml; kept here for pnpm <11 compatibility",
     "overrides": {
       "handlebars@<4.7.9": ">=4.7.9"
     }
