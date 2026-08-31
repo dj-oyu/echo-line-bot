@@ -5,10 +5,15 @@ in four places, `save_conversation_context` in two — and the two copies
 disagreed, so the direct-answer path never trimmed history while the search
 path did.
 
-Everything here initializes lazily. These helpers sit on paths that some
-handlers never take, and Lambda cold start is CPU-starved at 128 MB, so an
-unused boto3 client or linebot import is measurable latency rather than a
-rounding error.
+linebot is imported at module scope on purpose. Lambda runs the init phase
+at boosted CPU regardless of memorySize, while the handler phase is throttled
+in proportion to memory — so deferring a *mandatory* import moves it from the
+fast phase into the slow one. Every importer of this module ends up calling
+`push_text`, and when the import was lazy a cold ai_processor spent 6.0 s
+between receiving the model's answer and delivering it (0.12 s warm). At
+128 MB the same import hung until the function timed out and the answer was
+lost. Only genuinely conditional work stays lazy here: the boto3 clients,
+which not every caller touches.
 """
 
 import json
@@ -18,6 +23,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 import boto3
+from linebot.v3.messaging import (
+    ApiClient,
+    Configuration,
+    MessagingApi,
+    PushMessageRequest,
+    ShowLoadingAnimationRequest,
+    TextMessage,
+)
 
 logger = logging.getLogger()
 
@@ -105,8 +118,6 @@ def _configuration():
     """Get or create the Messaging API configuration, cached per container."""
     global _line_configuration
     if _line_configuration is None:
-        from linebot.v3.messaging import Configuration
-
         _line_configuration = Configuration(
             access_token=get_secret(os.environ["CHANNEL_ACCESS_TOKEN_NAME"])
         )
@@ -121,9 +132,6 @@ def push_text(
 ) -> None:
     """Push a text message to the event's source.
 
-    linebot is imported here rather than at module scope so handlers that do
-    not send on a given path pay nothing for it.
-
     Args:
         event: Handler event carrying userId, sourceType, sourceId, quote_token
         text: Message body
@@ -135,14 +143,6 @@ def push_text(
     Raises:
         Exception: If the push fails
     """
-    from linebot.v3.messaging import (
-        ApiClient,
-        MessagingApi,
-        PushMessageRequest,
-        ShowLoadingAnimationRequest,
-        TextMessage,
-    )
-
     source_type = event.get("sourceType")
     target_id = resolve_target_id(event)
 
