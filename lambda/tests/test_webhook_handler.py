@@ -127,7 +127,7 @@ class TestWebhookHandler(unittest.TestCase):
     @patch("webhook_handler.stepfunctions")
     @patch("webhook_handler.save_conversation_context")
     @patch("webhook_handler.get_conversation_context")
-    @patch("webhook_handler.configuration")
+    @patch("webhook_handler.get_line_configuration")
     @patch("webhook_handler.get_bot_user_id")
     def test_handle_message_forget_command(
         self, mock_get_bot_id, mock_config, mock_get_context, mock_save_context, mock_stepfunctions
@@ -151,8 +151,8 @@ class TestWebhookHandler(unittest.TestCase):
 
         # Mock LINE API with proper context manager
         with (
-            patch("webhook_handler.ApiClient") as mock_api_client,
-            patch("webhook_handler.MessagingApi") as mock_messaging_api,
+            patch("linebot.v3.messaging.ApiClient") as mock_api_client,
+            patch("linebot.v3.messaging.MessagingApi") as mock_messaging_api,
             # Patched at the source module: webhook_handler imports it lazily
             patch("ai_processor.delete_conversation_history") as mock_delete,
         ):

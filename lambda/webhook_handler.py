@@ -8,13 +8,6 @@ from datetime import datetime, timedelta, timezone
 import boto3
 from linebot.v3 import WebhookHandler
 from linebot.v3.exceptions import InvalidSignatureError
-from linebot.v3.messaging import (
-    ApiClient,
-    Configuration,
-    MessagingApi,
-    ReplyMessageRequest,
-    TextMessage,
-)
 from linebot.v3.webhooks import MessageEvent, TextMessageContent
 
 logger = logging.getLogger()
@@ -44,19 +37,42 @@ def get_secret(secret_name):
 
 # LINE Bot setup
 CHANNEL_SECRET = get_secret(CHANNEL_SECRET_NAME)
-CHANNEL_ACCESS_TOKEN = get_secret(CHANNEL_ACCESS_TOKEN_NAME)
-configuration = Configuration(access_token=CHANNEL_ACCESS_TOKEN)
 handler = WebhookHandler(CHANNEL_SECRET)
 conversation_table = dynamodb.Table(CONVERSATION_TABLE_NAME)
 
 BOT_USER_ID = None
+LINE_CONFIGURATION = None
+
+
+def get_line_configuration():
+    """Build the Messaging API configuration on first use.
+
+    Deferred rather than built at module scope because a 1:1 text message
+    never calls the Messaging API from this function — replies are sent by
+    interim_response_sender and response_sender. Only group mention checks
+    and /forget need it. Keeping it lazy takes both the linebot.v3.messaging
+    import (~350 ms) and a Secrets Manager round trip out of cold start.
+
+    Returns:
+        Configuration carrying the channel access token
+    """
+    global LINE_CONFIGURATION
+    if LINE_CONFIGURATION is None:
+        from linebot.v3.messaging import Configuration
+
+        LINE_CONFIGURATION = Configuration(
+            access_token=get_secret(CHANNEL_ACCESS_TOKEN_NAME)
+        )
+    return LINE_CONFIGURATION
 
 
 def get_bot_user_id():
     """Retrieve and cache the bot's own user ID"""
     global BOT_USER_ID
     if BOT_USER_ID is None:
-        with ApiClient(configuration) as api_client:
+        from linebot.v3.messaging import ApiClient, MessagingApi
+
+        with ApiClient(get_line_configuration()) as api_client:
             line_bot_api = MessagingApi(api_client)
             BOT_USER_ID = line_bot_api.get_bot_info().user_id
     return BOT_USER_ID
@@ -137,7 +153,14 @@ def handle_message(event):
         else:
             reply_text = "履歴の削除に失敗しました。"
 
-        with ApiClient(configuration) as api_client:
+        from linebot.v3.messaging import (
+            ApiClient,
+            MessagingApi,
+            ReplyMessageRequest,
+            TextMessage,
+        )
+
+        with ApiClient(get_line_configuration()) as api_client:
             line_bot_api = MessagingApi(api_client)
 
             # Create text message with quote token if available (for group chats)
