@@ -38,7 +38,7 @@ LINE Platformからのwebhookイベントを受信・検証し、Step Functions�
 **ハンドラ:** `lambda_handler`
 
 ### ai_processor.py
-高速AI推論を実行。SambaNovaまたはGroqを使用。
+高速AI推論を実行。Groq（既定）またはSambaNovaを使用。
 
 **主な機能:**
 - 会話履歴の取得・管理
@@ -50,11 +50,11 @@ LINE Platformからのwebhookイベントを受信・検証し、Step Functions�
 **タイムアウト:** 60秒
 
 ### grok_processor.py
-xAI Grok-4によるLive Search処理。Web検索が必要な場合に呼び出される。
+xAI Grok-4.6によるWeb検索処理。検索が必要な場合に呼び出される。
 
 **主な機能:**
-- langchain_xaiを使用したGrok-4呼び出し
-- Live Search APIによるリアルタイムWeb検索
+- xai_sdkを使用したGrok-4.6呼び出し
+- Agent Tools APIの`web_search`によるリアルタイムWeb検索
 - 検索結果を含む詳細な回答生成
 
 **ハンドラ:** `lambda_handler`
@@ -104,8 +104,11 @@ dependencies = [
 | 環境変数 | デフォルト | 備考 |
 |----------|-----------|------|
 | `GROQ_MODEL` | `qwen/qwen3.6-27b` | 131k コンテキスト / tool use 対応 |
-| `GROQ_REASONING_EFFORT` | `none` | qwen3.6 は `none` / `default` の2値のみ。gpt-oss 系は `low` / `medium` / `high`。**モデルを変えたら必ずこちらも合わせる**（語彙が非互換で、不正値は 400） |
+| `GROQ_REASONING_EFFORT` | `GROQ_MODEL` から導出 | qwen3.6 は `none` / `default` の2値のみ、gpt-oss 系は `low` / `medium` / `high` と語彙が非互換（不正値は 400）。未設定なら `default_reasoning_effort()` がモデルに合う値を選ぶので、**通常は設定しない**。明示すると導出より優先されるため、モデル変更時に取り残されると全リクエストが落ちる |
 | `SAMBANOVA_MODEL` | `DeepSeek-V3.2` | Preview 扱い / 32k コンテキスト。DeepSeek 系は tool calling が non-thinking モード限定なので `chat_template_kwargs.enable_thinking` は付けないこと（付けると `search_with_grok` が発火しなくなる）。Production 運用に寄せるなら `DeepSeek-V3.1`（128k）や `MiniMax-M2.7`（192k） |
+
+CDK は `GROQ_REASONING_EFFORT` が明示された時だけ Lambda に渡す（`cdk/lib/lambda-stack.ts`）。
+GitHub Actions の environment 変数にも置かないこと — 置くとモデルとの整合を人手で守る必要が戻る。
 
 `GROQ_REASONING_EFFORT=default`（thinking 有効）にする場合、reasoning トークンが出力予算を消費するため
 `max_tokens=1000` では応答が途中で切れうる。引き上げとセットで変更する。
