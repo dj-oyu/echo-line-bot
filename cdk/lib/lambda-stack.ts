@@ -8,16 +8,7 @@ import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as path from 'path';
 import { Construct } from 'constructs';
 
-/**
- * Python 3.14 runtime.
- *
- * aws-cdk-lib 2.202.0 only ships constants up to PYTHON_3_13, so the runtime
- * is declared by name. Replace with lambda.Runtime.PYTHON_3_14 once the CDK
- * dependency is upgraded.
- */
-const PYTHON_RUNTIME = new lambda.Runtime('python3.14', lambda.RuntimeFamily.PYTHON, {
-  supportsInlineCode: true,
-});
+const PYTHON_RUNTIME = lambda.Runtime.PYTHON_3_14;
 
 /**
  * Paths excluded from the Lambda function asset.
@@ -185,7 +176,7 @@ export class LineEchoStack extends cdk.Stack {
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
         SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
-        GROQ_MODEL: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+        GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
         // Only forwarded when explicitly set: otherwise ai_processor derives a
         // value the configured model accepts (the vocabularies are disjoint).
         ...(process.env.GROQ_REASONING_EFFORT

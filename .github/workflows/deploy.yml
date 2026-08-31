@@ -47,6 +47,26 @@ jobs:
       run: |
         ./scripts/build-layer.sh
         
+    - name: Run Python tests
+      # Handler modules read these at import time; the values are never used
+      # because every test that touches AWS mocks the client.
+      env:
+        CHANNEL_SECRET_NAME: test-channel-secret
+        CHANNEL_ACCESS_TOKEN_NAME: test-channel-access-token
+        CONVERSATION_TABLE_NAME: test-conversations
+        SAMBA_NOVA_API_KEY_NAME: test-samba-key
+        GROQ_API_KEY_NAME: test-groq-key
+        XAI_API_KEY_SECRET_NAME: test-xai-key
+        STEP_FUNCTION_ARN: arn:aws:states:ap-northeast-1:000000000000:stateMachine:test
+        AWS_DEFAULT_REGION: ap-northeast-1
+        # Dummy credentials so boto3 never walks its real provider chain while
+        # building the module-level clients. Every AWS call in the tests is mocked.
+        AWS_ACCESS_KEY_ID: testing
+        AWS_SECRET_ACCESS_KEY: testing
+        AWS_SESSION_TOKEN: testing
+      run: |
+        uv run pytest lambda/tests -v
+        
     - name: Install CDK dependencies
       run: |
         cd cdk

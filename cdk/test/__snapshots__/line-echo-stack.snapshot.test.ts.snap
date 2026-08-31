@@ -352,7 +352,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
               "Ref": "ConversationHistoryD9612A4F",
             },
             "GROQ_API_KEY_NAME": "GROQ_API_KEY",
-            "GROQ_MODEL": "qwen/qwen3.6-27b",
+            "GROQ_MODEL": "openai/gpt-oss-20b",
             "SAMBANOVA_MODEL": "DeepSeek-V3.2",
             "SAMBA_NOVA_API_KEY_NAME": "SAMBA_NOVA_API_KEY",
           },
@@ -466,8 +466,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -486,8 +484,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -1213,8 +1223,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -1233,8 +1241,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -1355,8 +1375,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -1375,8 +1393,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -1670,8 +1700,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -1690,8 +1718,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -1809,8 +1849,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -1829,8 +1867,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -1901,8 +1951,6 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             {
               "Action": [
                 "dynamodb:BatchGetItem",
-                "dynamodb:GetRecords",
-                "dynamodb:GetShardIterator",
                 "dynamodb:Query",
                 "dynamodb:GetItem",
                 "dynamodb:Scan",
@@ -1921,8 +1969,20 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     "Arn",
                   ],
                 },
+              ],
+            },
+            {
+              "Action": [
+                "dynamodb:GetRecords",
+                "dynamodb:GetShardIterator",
+              ],
+              "Effect": "Allow",
+              "Resource": [
                 {
-                  "Ref": "AWS::NoValue",
+                  "Fn::GetAtt": [
+                    "ConversationHistoryD9612A4F",
+                    "Arn",
+                  ],
                 },
               ],
             },
@@ -2392,15 +2452,21 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
         "dynamodb:DeleteItem",
         "dynamodb:DescribeTable",
         "dynamodb:GetItem",
-        "dynamodb:GetRecords",
-        "dynamodb:GetShardIterator",
         "dynamodb:PutItem",
         "dynamodb:Query",
         "dynamodb:Scan",
         "dynamodb:UpdateItem",
       ],
       "Effect": "Allow",
-      "Resources": 2,
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
     },
   ],
   "GrokProcessorServiceRoleDefaultPolicy7DF55481": [
@@ -2440,15 +2506,21 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
         "dynamodb:DeleteItem",
         "dynamodb:DescribeTable",
         "dynamodb:GetItem",
-        "dynamodb:GetRecords",
-        "dynamodb:GetShardIterator",
         "dynamodb:PutItem",
         "dynamodb:Query",
         "dynamodb:Scan",
         "dynamodb:UpdateItem",
       ],
       "Effect": "Allow",
-      "Resources": 2,
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
     },
   ],
   "WebhookHandlerServiceRoleDefaultPolicyE376E30C": [
@@ -2476,15 +2548,21 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
         "dynamodb:DeleteItem",
         "dynamodb:DescribeTable",
         "dynamodb:GetItem",
-        "dynamodb:GetRecords",
-        "dynamodb:GetShardIterator",
         "dynamodb:PutItem",
         "dynamodb:Query",
         "dynamodb:Scan",
         "dynamodb:UpdateItem",
       ],
       "Effect": "Allow",
-      "Resources": 2,
+      "Resources": 1,
+    },
+    {
+      "Actions": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
     },
     {
       "Actions": [
