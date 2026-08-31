@@ -103,7 +103,7 @@ dependencies = [
 
 | 環境変数 | デフォルト | 備考 |
 |----------|-----------|------|
-| `GROQ_MODEL` | `qwen/qwen3.6-27b` | 131k コンテキスト / tool use 対応 |
+| `GROQ_MODEL` | `openai/gpt-oss-20b` | qwen/qwen3.6-27b に替えたところ `search_with_grok` が発火しなくなったため差し戻し（[原因未特定](#groq-モデルとツール呼び出し)） |
 | `GROQ_REASONING_EFFORT` | `GROQ_MODEL` から導出 | qwen3.6 は `none` / `default` の2値のみ、gpt-oss 系は `low` / `medium` / `high` と語彙が非互換（不正値は 400）。未設定なら `default_reasoning_effort()` がモデルに合う値を選ぶので、**通常は設定しない**。明示すると導出より優先されるため、モデル変更時に取り残されると全リクエストが落ちる |
 | `XAI_MODEL` | `grok-4.6` | grok_processor の検索モデル。`GROQ_MODEL` と1文字違いになるのを避けて `GROK_MODEL` ではなく `XAI_MODEL`（同 Lambda の `XAI_API_KEY_SECRET_NAME` に揃えた）。取り違えると全リクエストが 400 |
 | `SAMBANOVA_MODEL` | `DeepSeek-V3.2` | Preview 扱い / 32k コンテキスト。DeepSeek 系は tool calling が non-thinking モード限定なので `chat_template_kwargs.enable_thinking` は付けないこと（付けると `search_with_grok` が発火しなくなる）。Production 運用に寄せるなら `DeepSeek-V3.1`（128k）や `MiniMax-M2.7`（192k） |
@@ -113,6 +113,18 @@ GitHub Actions の environment 変数にも置かないこと — 置くとモ�
 
 `GROQ_REASONING_EFFORT=default`（thinking 有効）にする場合、reasoning トークンが出力予算を消費するため
 `max_tokens=1000` では応答が途中で切れうる。引き上げとセットで変更する。
+
+### Groq モデルとツール呼び出し
+
+`qwen/qwen3.6-27b` を既定にしたところ、リアルタイム情報を要する質問
+（「最近の AWS のアップデート」）でも `search_with_grok` が発火せず、モデルが
+自前の知識で回答した。本番ログでユーザーメッセージ2件・tool call 0件・
+GrokProcessor 起動0件を確認し、`openai/gpt-oss-20b` に差し戻した。
+
+原因は未特定。モデル自体の傾向と、`default_reasoning_effort()` が qwen に対して
+`none`（非thinking）を選ぶことの、どちらが効いているか切り分けられていない
+（差し戻すと effort も `medium` に戻るため）。qwen を再検討する場合は、
+`GROQ_REASONING_EFFORT=default` と `max_tokens` の引き上げをセットで試すこと。
 
 ## Message Processing Flow
 

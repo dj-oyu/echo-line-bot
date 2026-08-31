@@ -185,7 +185,7 @@ export class LineEchoStack extends cdk.Stack {
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
         SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
-        GROQ_MODEL: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+        GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
         // Only forwarded when explicitly set: otherwise ai_processor derives a
         // value the configured model accepts (the vocabularies are disjoint).
         ...(process.env.GROQ_REASONING_EFFORT

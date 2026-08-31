@@ -302,7 +302,7 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 - **jest** (v29.7.0): テストフレームワーク
 
 ### 外部API
-- **Groq API**: qwen/qwen3.6-27b モデル（既定バックエンド）
+- **Groq API**: openai/gpt-oss-20b モデル（既定バックエンド）
 - **SambaNova Cloud API**: DeepSeek-V3.2 モデル
 - **xAI API**: Grok-4.6 Agent Tools（web_search）
 
