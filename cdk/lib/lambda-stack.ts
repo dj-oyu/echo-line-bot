@@ -166,7 +166,7 @@ export class LineEchoStack extends cdk.Stack {
         CHANNEL_SECRET_NAME: secrets.lineChannelSecret.secretName,
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
         STEP_FUNCTION_ARN: '', // Placeholder, will be populated later
-        // Required for ai_processor import (used by /forget command)
+        // Read only when /forget triggers the lazy ai_processor import
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
       },
