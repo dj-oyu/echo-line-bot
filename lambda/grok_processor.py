@@ -14,6 +14,9 @@ logger.setLevel(logging.INFO)
 
 # Environment variables
 XAI_API_KEY_SECRET_NAME = os.environ["XAI_API_KEY_SECRET_NAME"]
+# Named XAI_MODEL rather than GROK_MODEL: the latter is one letter from the
+# ai_processor's GROQ_MODEL, and swapping those two values 400s every request.
+XAI_MODEL = os.environ.get("XAI_MODEL", "grok-4.6")
 
 # AWS clients
 secretsmanager = boto3.client("secretsmanager")
@@ -86,7 +89,7 @@ def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
 
         # Create chat with web search tool (Agent Tools API)
         chat = client.chat.create(
-            model="grok-4.6",
+            model=XAI_MODEL,
             tools=[web_search()],
         )
 

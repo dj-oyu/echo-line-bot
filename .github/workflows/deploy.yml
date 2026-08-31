@@ -66,6 +66,7 @@ jobs:
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
         GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}
+        XAI_MODEL: ${{ vars.XAI_MODEL }}
       run: |
         cd cdk
         pnpm run cdk synth
@@ -144,6 +145,7 @@ jobs:
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
         GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}
+        XAI_MODEL: ${{ vars.XAI_MODEL }}
       run: |
         cd cdk
         pnpm run cdk deploy --require-approval never --ci

@@ -186,6 +186,7 @@ export class LineEchoStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
+        XAI_MODEL: process.env.XAI_MODEL || 'grok-4.6',
       },
     });
     secrets.xaiApiKeySecret.grantRead(grokProcessorLambda);

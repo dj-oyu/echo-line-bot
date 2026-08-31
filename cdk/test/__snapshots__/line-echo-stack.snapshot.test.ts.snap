@@ -907,6 +907,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
         "Environment": {
           "Variables": {
             "XAI_API_KEY_SECRET_NAME": "XAI_API_KEY",
+            "XAI_MODEL": "grok-4.6",
           },
         },
         "Handler": "grok_processor.lambda_handler",
@@ -2174,6 +2175,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       "Environment": {
         "Variables": [
           "XAI_API_KEY_SECRET_NAME",
+          "XAI_MODEL",
         ],
       },
       "Handler": "grok_processor.lambda_handler",

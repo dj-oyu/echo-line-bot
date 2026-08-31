@@ -256,6 +256,29 @@ describe('LINE Echo Stack', () => {
       }
     });
 
+    test('should default the Grok processor to the pinned xAI model', () => {
+      // Given: no XAI_MODEL override in the deploy environment
+      // When: The stack is synthesized
+      // Then: The Grok processor should receive the model the code was written against
+      const original = process.env.XAI_MODEL;
+      delete process.env.XAI_MODEL;
+
+      try {
+        const cleanTemplate = Template.fromStack(new LineEchoStack(new cdk.App(), 'XaiModelStack'));
+        const grokProcessor = Object.values(cleanTemplate.findResources('AWS::Lambda::Function')).find(
+          (func: any) => func.Properties.Handler === 'grok_processor.lambda_handler'
+        ) as any;
+
+        expect(grokProcessor.Properties.Environment.Variables.XAI_MODEL).toBe('grok-4.6');
+      } finally {
+        if (original === undefined) {
+          delete process.env.XAI_MODEL;
+        } else {
+          process.env.XAI_MODEL = original;
+        }
+      }
+    });
+
     test('should configure Grok processor with xAI API access', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
