@@ -12,10 +12,34 @@ import { LineEchoStack } from '../lib/lambda-stack';
  * - Template structure verification
  */
 
-// Skip snapshot tests in CI environment due to environment-specific asset hash differences
-const describeOrSkip = process.env.CI ? describe.skip : describe;
+/**
+ * Replaces machine-specific asset hashes with placeholders.
+ *
+ * Asset hashes are derived from the contents of `lambda/` and the layer build
+ * directory, so they differ per machine (a stray `__pycache__` is enough) and
+ * would otherwise make the template snapshot unusable in CI.
+ */
+const normalizeAssetHashes = (value: unknown): unknown => {
+  if (Array.isArray(value)) {
+    return value.map(normalizeAssetHashes);
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, val]) => {
+        if (key === 'S3Key' && typeof val === 'string') {
+          return [key, '<ASSET_HASH>.zip'];
+        }
+        if (key === 'aws:asset:path' && typeof val === 'string') {
+          return [key, '<ASSET_PATH>'];
+        }
+        return [key, normalizeAssetHashes(val)];
+      })
+    );
+  }
+  return value;
+};
 
-describeOrSkip('LINE Echo Stack - Snapshot Tests', () => {
+describe('LINE Echo Stack - Snapshot Tests', () => {
   let app: cdk.App;
   let stack: LineEchoStack;
   let template: Template;
@@ -34,7 +58,7 @@ describeOrSkip('LINE Echo Stack - Snapshot Tests', () => {
       // When: The stack is synthesized
       // Then: The CloudFormation template should match the known good snapshot
       
-      const templateJson = template.toJSON();
+      const templateJson = normalizeAssetHashes(template.toJSON());
       
       // This will create a snapshot on first run and compare against it on subsequent runs
       expect(templateJson).toMatchSnapshot();

@@ -195,6 +195,67 @@ describe('LINE Echo Stack', () => {
       }
     });
 
+    test('should default AI processor to the current models when no overrides are set', () => {
+      // Given: no model overrides in the deploy environment
+      // When: The stack is synthesized
+      // Then: The AI processor should pin the models the code was written against,
+      //       and leave reasoning_effort unset so ai_processor derives a value the
+      //       configured Groq model actually accepts
+      const overrideKeys = [
+        'AI_BACKEND',
+        'SAMBANOVA_MODEL',
+        'GROQ_MODEL',
+        'GROQ_REASONING_EFFORT',
+      ] as const;
+      const originals = new Map(overrideKeys.map((key) => [key, process.env[key]]));
+      overrideKeys.forEach((key) => delete process.env[key]);
+
+      try {
+        const cleanTemplate = Template.fromStack(new LineEchoStack(new cdk.App(), 'DefaultsStack'));
+        const aiProcessor = Object.values(cleanTemplate.findResources('AWS::Lambda::Function')).find(
+          (func: any) => func.Properties.Handler === 'ai_processor.lambda_handler'
+        ) as any;
+
+        const envVars = aiProcessor.Properties.Environment.Variables;
+        expect(envVars.AI_BACKEND).toBe('groq');
+        expect(envVars.GROQ_MODEL).toBe('qwen/qwen3.6-27b');
+        expect(envVars.SAMBANOVA_MODEL).toBe('DeepSeek-V3.2');
+        expect(envVars).not.toHaveProperty('GROQ_REASONING_EFFORT');
+      } finally {
+        // Assigning undefined would leave the literal string "undefined" behind
+        originals.forEach((value, key) => {
+          if (value === undefined) {
+            delete process.env[key];
+          } else {
+            process.env[key] = value;
+          }
+        });
+      }
+    });
+
+    test('should forward an explicit reasoning effort override to the AI processor', () => {
+      // Given: GROQ_REASONING_EFFORT is set at deploy time
+      // When: The stack is synthesized
+      // Then: The value should reach the Lambda verbatim
+      const original = process.env.GROQ_REASONING_EFFORT;
+      process.env.GROQ_REASONING_EFFORT = 'default';
+
+      try {
+        const cleanTemplate = Template.fromStack(new LineEchoStack(new cdk.App(), 'EffortStack'));
+        const aiProcessor = Object.values(cleanTemplate.findResources('AWS::Lambda::Function')).find(
+          (func: any) => func.Properties.Handler === 'ai_processor.lambda_handler'
+        ) as any;
+
+        expect(aiProcessor.Properties.Environment.Variables.GROQ_REASONING_EFFORT).toBe('default');
+      } finally {
+        if (original === undefined) {
+          delete process.env.GROQ_REASONING_EFFORT;
+        } else {
+          process.env.GROQ_REASONING_EFFORT = original;
+        }
+      }
+    });
+
     test('should configure Grok processor with xAI API access', () => {
       // Given: A LINE bot stack is created
       // When: The stack is synthesized
