@@ -316,6 +316,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "Ref": "DependenciesLayerDF300E31",
           },
         ],
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "AiProcessorServiceRole60DF3539",
@@ -910,6 +911,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "Ref": "DependenciesLayerDF300E31",
           },
         ],
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "GrokProcessorServiceRoleF8734B76",
@@ -1084,6 +1086,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "Ref": "DependenciesLayerDF300E31",
           },
         ],
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "ResponseSenderServiceRole58D7A13C",
@@ -1091,7 +1094,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
           ],
         },
         "Runtime": "python3.14",
-        "Timeout": 10,
+        "Timeout": 30,
       },
       "Type": "AWS::Lambda::Function",
     },
@@ -1202,6 +1205,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
             "Ref": "DependenciesLayerDF300E31",
           },
         ],
+        "MemorySize": 512,
         "Role": {
           "Fn::GetAtt": [
             "WebhookHandlerServiceRoleF07A4D12",
@@ -2117,7 +2121,7 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       },
       "Handler": "response_sender.lambda_handler",
       "Runtime": "python3.14",
-      "Timeout": 10,
+      "Timeout": 30,
     },
     "Type": "AWS::Lambda::Function",
   },
@@ -2164,8 +2168,8 @@ exports[`LINE Echo Stack - Snapshot Tests Environment-Specific Snapshots should 
   ],
   "timeouts": [
     10,
-    10,
     180,
+    30,
     60,
   ],
 }
@@ -2190,7 +2194,7 @@ exports[`LINE Echo Stack - Snapshot Tests Performance Configuration Snapshots sh
       },
       {
         "handler": "response_sender.lambda_handler",
-        "timeout": 10,
+        "timeout": 30,
       },
       {
         "handler": "webhook_handler.lambda_handler",
