@@ -16,8 +16,8 @@ lambda/
 ├── webhook_handler.py       # LINE webhook処理、Step Functions起動
 ├── ai_processor.py          # SambaNova/Groq AI処理
 ├── grok_processor.py        # xAI Grok検索処理
-├── interim_response_sender.py # 中間レスポンス送信
-├── response_sender.py       # 最終レスポンス送信
+├── response_sender.py       # 失敗通知（Catch 先）
+├── line_messaging.py        # LINE送信・履歴永続化の共通処理
 ├── requirements.txt         # Lambda Layer用依存関係
 ├── layer-dist/              # ビルド済みLayer（gitignore）
 └── tests/                   # Pytestテスト
@@ -60,22 +60,29 @@ xAI Grok-4.6によるWeb検索処理。検索が必要な場合に呼び出さ�
 **ハンドラ:** `lambda_handler`
 **タイムアウト:** 180秒
 
-### interim_response_sender.py
-長時間処理の開始時に「調べています...」等の中間レスポンスを送信。
+### response_sender.py
+Step Functions の Catch 先。**正常系では呼ばれない。**
+
+どの段も、自分が生成したメッセージは自分で送る。専用の送信段を挟むと
+1リクエストごとに約3秒のコールドスタートを払うことになるため廃止した。
+ここに残っているのは「応答を送る前に落ちた」場合の通知役で、
+Lambda のタイムアウト・OOM・init 失敗のように上流の except が
+拾えない失敗をカバーする。
 
 **ハンドラ:** `lambda_handler`
 **タイムアウト:** 10秒
 
-### response_sender.py
-最終的なAI回答をLINEユーザーに送信し、会話履歴をDynamoDBに保存。
+### line_messaging.py
+LINE送信と会話履歴永続化の共通処理。
 
 **主な機能:**
 - LINE Push API使用（Reply Tokenは期限切れのため）
-- グループ/ルームでの引用返信対応
-- 会話履歴の更新
+- グループ/ルームでの引用返信と送信先判定
+- `X-Line-Retry-Key` による冪等な送信（Step Functions のリトライ対策）
+- 会話履歴の保存と直近20件へのトリム
 
-**ハンドラ:** `lambda_handler`
-**タイムアウト:** 10秒
+boto3クライアントもlinebotのimportも遅延初期化する。128MBのLambdaでは
+使わない依存の読み込みが体感できるレイテンシになるため。
 
 ## Dependencies
 
