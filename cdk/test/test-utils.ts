@@ -86,7 +86,7 @@ export class TestDataFactory {
           handler: 'response_sender.lambda_handler',
           runtime: 'python3.14',
           description: 'Notifies the user when a stage failed before it could reply',
-          timeout: 10,
+          timeout: 30,
           requiresLineCredentials: true
         }
       ]

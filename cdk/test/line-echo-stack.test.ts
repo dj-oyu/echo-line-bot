@@ -117,7 +117,7 @@ describe('LINE Echo Stack', () => {
         Handler: 'response_sender.lambda_handler',
         Runtime: 'python3.14',
         Description: 'Notifies the user when a stage failed before it could reply',
-        Timeout: 10
+        Timeout: 30
       });
     });
 

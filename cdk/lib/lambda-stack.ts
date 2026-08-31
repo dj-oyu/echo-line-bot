@@ -132,10 +132,15 @@ export class LineEchoStack extends cdk.Stack {
     secrets: ReturnType<typeof this.createSecretReferences>,
     dependenciesLayer: lambda.LayerVersion
   ) {
-    // Memory is deliberately left at the 128 MB default. CloudWatch shows all
-    // five functions peaking at 107-122 MB, which is tight, but zero OOM events
-    // have occurred. Raise it only if the logs actually show one.
+    // 128 MB stopped being enough once delivery moved into the producing
+    // stages: ai_processor now loads linebot (320 pydantic modules) on top of
+    // openai, and grok_processor on top of xai_sdk and grpc. Production hit
+    // "Max Memory Used: 128 MB" and then hung until the 60 s timeout — the
+    // Groq call had already returned, so the answer was lost after being paid
+    // for. Lambda scales CPU with memory, so this also shortens the imports
+    // that made the ceiling expensive to sit against.
     const baseConfig = {
+      memorySize: 512,
       runtime: PYTHON_RUNTIME,
       code: lambda.Code.fromAsset(path.join(__dirname, '../../lambda'), {
         exclude: FUNCTION_ASSET_EXCLUDES,
@@ -210,7 +215,9 @@ export class LineEchoStack extends cdk.Stack {
       ...baseConfig,
       handler: 'response_sender.lambda_handler',
       description: 'Notifies the user when a stage failed before it could reply',
-      timeout: cdk.Duration.seconds(10),
+      // It timed out at 10 s doing exactly this: cold start, linebot import,
+      // secret fetch, push. The safety net must not be the thing that fails.
+      timeout: cdk.Duration.seconds(30),
       environment: {
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
       },
