@@ -46,6 +46,7 @@ def get_secret(secret_name: str) -> dict[str, Any]:
 
 # xAI client (lazy initialization)
 XAI_API_KEY = None
+XAI_CLIENT: Client | None = None
 
 
 def get_xai_api_key() -> str:
@@ -68,6 +69,21 @@ def get_xai_api_key() -> str:
     return XAI_API_KEY
 
 
+def get_xai_client() -> Client:
+    """Get or create the xAI client.
+
+    Built lazily rather than at import time so the Secrets Manager call stays
+    out of cold start, then reused so warm invocations skip connection setup.
+
+    Returns:
+        Client configured with the xAI API key
+    """
+    global XAI_CLIENT
+    if XAI_CLIENT is None:
+        XAI_CLIENT = Client(api_key=get_xai_api_key())
+    return XAI_CLIENT
+
+
 def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
     """Call xAI Grok API for search using official SDK.
 
@@ -84,11 +100,8 @@ def call_grok_api(query: str, prompt: str | None) -> tuple[str, str]:
         logger.info(f"Calling Grok with query: {query}")
         logger.info(f"Using prompt: {prompt if prompt else 'No prompt provided'}")
 
-        # Initialize xAI client
-        client = Client(api_key=get_xai_api_key())
-
         # Create chat with web search tool (Agent Tools API)
-        chat = client.chat.create(
+        chat = get_xai_client().chat.create(
             model=XAI_MODEL,
             tools=[web_search()],
         )
