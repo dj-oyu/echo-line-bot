@@ -1,11 +1,11 @@
 # LINE AI チャットボット
 
-SambaNova Cloud の DeepSeek-V3 モデルと xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
+Groq の Qwen3.6 モデルと xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
 
 ## 機能
 
-- **デュアル AI 機能**: SambaNova Cloud の DeepSeek-V3-0324 モデル + xAI Grok による高性能な会話
-- **検索連携機能**: Grok の Live Search API によるリアルタイム情報検索
+- **デュアル AI 機能**: Groq の Qwen3.6-27B（既定）/ SambaNova Cloud の DeepSeek-V3.2 + xAI Grok-4.6 による高性能な会話
+- **検索連携機能**: Grok の Agent Tools API（`web_search`）によるリアルタイム情報検索
 - **会話記憶**: DynamoDB を使用した文脈を考慮した会話継続（30分間）
 - **関西弁キャラクター**: 「あいちゃん」として関西弁で親しみやすく応答
 - **時間認識**: 時間帯に応じた挨拶と季節感のある応答
@@ -45,7 +45,7 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
   - `InterimResponseSender`: Grok検索時の中間応答送信（10秒タイムアウト）
   - `GrokProcessor`: xAI Grok検索処理（60秒タイムアウト）
   - `ResponseSender`: LINE Push API経由での最終応答送信（10秒タイムアウト）
-- **Lambda Layer**: 事前ビルド済み共通依存関係（line-bot-sdk, openai, boto3, langchain-xai, pytz）
+- **Lambda Layer**: 事前ビルド済み共通依存関係（line-bot-sdk, openai, boto3, xai-sdk, pytz）
 - **Step Functions**: 条件分岐付きAI処理ワークフローの管理
 - **API Gateway**: LINE webhook用REST APIエンドポイント
 - **Secrets Manager**: 暗号化されたAPI キーとトークンの管理
@@ -81,7 +81,7 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 
 ## 前提条件
 
-- Node.js 20+ (CDK 用)
+- Node.js 22+ (CDK 用。pnpm 11 が Node >= 22.13 を要求)
 - Python 3.12+
 - pnpm (パッケージマネージャー)
 - uv (Python パッケージマネージャー)
@@ -243,14 +243,14 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 4. **Step Functions**がAI 処理ワークフローを開始
 
 ### AI処理フロー
-5. **AI Processor Lambda**が会話履歴を取得し、SambaNova API で応答を生成
+5. **AI Processor Lambda**が会話履歴を取得し、Groq API（既定。`AI_BACKEND` で SambaNova に切替可）で応答を生成
 6. Tool Call（検索要求）の有無を判定
    - **Tool Call あり**: 中間応答→Grok検索→最終応答
    - **Tool Call なし**: 直接応答
 
 ### Tool Call ありの場合
 7a. **Interim Response Sender Lambda**が「検索中...」の中間応答を送信
-8a. **Grok Processor Lambda**がxAI Grok Live Search APIで情報検索
+8a. **Grok Processor Lambda**がxAI Grok の Agent Tools API（`web_search`）で情報検索
 9a. **Response Sender Lambda**が検索結果を含む最終応答を送信
 
 ### Tool Call なしの場合
@@ -277,7 +277,7 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 
 ## AI の特徴
 
-- **デュアルAIエンジン**: SambaNova DeepSeek-V3（基本会話）+ xAI Grok（検索連携）
+- **デュアルAIエンジン**: Groq Qwen3.6-27B / SambaNova DeepSeek-V3.2（基本会話）+ xAI Grok-4.6（検索連携）
 - **キャラクター**: 関西弁で話す「あいちゃん」
 - **会話記憶**: 30分間の会話セッションを維持
 - **検索連携**: リアルタイム情報検索とTool Calling
@@ -290,8 +290,8 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 
 ### Python（uv管理）
 - **line-bot-sdk** (v3.17.1+): LINE Bot SDK v3
-- **openai** (v1.95.1+): SambaNova API クライアント
-- **langchain-xai** (v0.2.4+): xAI Grok統合
+- **openai** (v1.95.1+): Groq / SambaNova の OpenAI 互換 API クライアント
+- **xai-sdk** (v1.0.0+): xAI Grok統合
 - **boto3** (v1.39.4+): AWS SDK
 - **pytz** (v2025.2+): タイムゾーン処理
 
@@ -302,8 +302,9 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 - **jest** (v29.7.0): テストフレームワーク
 
 ### 外部API
-- **SambaNova Cloud API**: DeepSeek-V3-0324モデル
-- **xAI API**: Grok Live Search機能
+- **Groq API**: qwen/qwen3.6-27b モデル（既定バックエンド）
+- **SambaNova Cloud API**: DeepSeek-V3.2 モデル
+- **xAI API**: Grok-4.6 Agent Tools（web_search）
 
 ## トラブルシューティング
 
@@ -329,8 +330,8 @@ The operation failed because the secret already exists
 
 #### 3. Lambda Layer importエラー
 ```
-from langchain_xai import ChatXAI
-ImportError: No module named 'langchain_xai'
+from xai_sdk import Client
+ImportError: No module named 'xai_sdk'
 ```
 
 **解決方法**:
@@ -339,7 +340,7 @@ ImportError: No module named 'langchain_xai'
 ./scripts/build-layer.sh
 
 # 依存関係の確認
-ls lambda/layer-dist/python/langchain_xai/
+ls lambda/layer-dist/python/xai_sdk/
 ```
 
 #### 4. pnpm/uv 未インストールエラー

@@ -1,0 +1,3 @@
+# pnpm 11 no longer reads the "pnpm" field in package.json; overrides live here.
+overrides:
+  handlebars@<4.7.9: '>=4.7.9'

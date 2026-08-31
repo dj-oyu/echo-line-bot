@@ -19,12 +19,13 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
       with:
-        version: latest
+        # Version comes from cdk/package.json's packageManager field
+        package_json_file: cdk/package.json
         
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'pnpm'
         cache-dependency-path: cdk/pnpm-lock.yaml
         
@@ -65,6 +66,8 @@ jobs:
       env:
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+        GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}
+        XAI_MODEL: ${{ vars.XAI_MODEL }}
       run: |
         cd cdk
         pnpm run cdk synth
@@ -81,12 +84,13 @@ jobs:
     - name: Install pnpm
       uses: pnpm/action-setup@v6
       with:
-        version: latest
+        # Version comes from cdk/package.json's packageManager field
+        package_json_file: cdk/package.json
         
     - name: Set up Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20'
+        node-version: '22'
         cache: 'pnpm'
         cache-dependency-path: cdk/pnpm-lock.yaml
         
@@ -142,6 +146,8 @@ jobs:
       env:
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
+        GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}
+        XAI_MODEL: ${{ vars.XAI_MODEL }}
       run: |
         cd cdk
         pnpm run cdk deploy --require-approval never --ci

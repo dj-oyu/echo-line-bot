@@ -28,7 +28,7 @@ from xai_sdk.tools import web_search
 
 client = Client(api_key=os.getenv("XAI_API_KEY"))
 chat = client.chat.create(
-    model="grok-4.3",
+    model="grok-4.6",
     tools=[web_search()],
 )
 chat.append(user("最近のxAIのアップデート教えて"))
@@ -56,16 +56,17 @@ for response, chunk in chat.stream():
 
 ## Grok モデル
 
-`grok-4.3` は xAI の最新の汎用モデルで、エージェント的なツール呼び出しと指示追従に優れる。`<modelname>` エイリアスは最新の安定版に自動追従するため、本プロジェクトでも `grok-4.3` を使用（旧モデル `grok-4-1-fast` 系は 2026-05-15 に廃止）。
+`grok-4.6` は xAI の最新の汎用モデル（2026-08-12 リリース）で、長時間のエージェントループとツール呼び出しに強い。コンテキスト長は 500k トークン、`reasoning_effort` は low / medium / high（既定）/ xhigh をサポート。モデル ID は環境変数 `XAI_MODEL` で差し替え可能で、未設定時は `grok-4.6` に固定される（`grok-4-1-fast` 系は 2026-05-15 に廃止済み）。`<modelname>` エイリアスは最新の安定版に自動追従するが、挙動が黙って変わらないよう本プロジェクトでは明示的に固定している。
 
-## 料金 (2026-05 時点)
+## 料金 (2026-08 時点)
 
 Tools API のコストは「トークン使用量」と「ツール呼び出し数」の合算。
 
-| トークン (grok-4.3) | 単価 |
-|---------------------|------|
-| 入力 | $1.25 / 1M tokens |
-| 出力 | $2.50 / 1M tokens |
+| トークン (grok-4.6) | 単価（プロンプト 200k 以下） | 単価（200k 超） |
+|---------------------|------------------------------|-----------------|
+| 入力 | $2.00 / 1M tokens | $4.00 / 1M tokens |
+| キャッシュ入力 | $0.50 / 1M tokens | $1.00 / 1M tokens |
+| 出力 | $6.00 / 1M tokens | $12.00 / 1M tokens |
 
 | ツール呼び出し | 単価 |
 |----------------|------|

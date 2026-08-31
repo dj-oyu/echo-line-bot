@@ -7,7 +7,7 @@ AWS CDKを使用したインフラストラクチャ定義。TypeScriptで記述
 - **Language**: TypeScript
 - **Package Manager**: pnpm
 - **CDK Version**: aws-cdk-lib
-- **Node.js**: 20
+- **Node.js**: 22
 
 ## Directory Structure
 
@@ -144,9 +144,9 @@ Lambda関数に渡される環境変数:
 | Lambda | Variables |
 |--------|-----------|
 | WebhookHandler | CONVERSATION_TABLE_NAME, CHANNEL_SECRET_NAME, CHANNEL_ACCESS_TOKEN_NAME, STEP_FUNCTION_ARN |
-| AiProcessor | CONVERSATION_TABLE_NAME, SAMBA_NOVA_API_KEY_NAME, GROQ_API_KEY_NAME, AI_BACKEND |
+| AiProcessor | CONVERSATION_TABLE_NAME, SAMBA_NOVA_API_KEY_NAME, GROQ_API_KEY_NAME, AI_BACKEND, SAMBANOVA_MODEL, GROQ_MODEL, GROQ_REASONING_EFFORT |
 | InterimResponseSender | CHANNEL_ACCESS_TOKEN_NAME |
-| GrokProcessor | XAI_API_KEY_SECRET_NAME |
+| GrokProcessor | XAI_API_KEY_SECRET_NAME, XAI_MODEL |
 | ResponseSender | CONVERSATION_TABLE_NAME, CHANNEL_ACCESS_TOKEN_NAME |
 
 ## Related Documentation

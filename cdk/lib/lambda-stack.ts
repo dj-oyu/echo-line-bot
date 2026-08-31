@@ -152,8 +152,13 @@ export class LineEchoStack extends cdk.Stack {
         SAMBA_NOVA_API_KEY_NAME: secrets.sambaNovaApiKey.secretName,
         GROQ_API_KEY_NAME: secrets.groqApiKeySecret.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
-        SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3-0324',
-        GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
+        SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
+        GROQ_MODEL: process.env.GROQ_MODEL || 'qwen/qwen3.6-27b',
+        // Only forwarded when explicitly set: otherwise ai_processor derives a
+        // value the configured model accepts (the vocabularies are disjoint).
+        ...(process.env.GROQ_REASONING_EFFORT
+          ? { GROQ_REASONING_EFFORT: process.env.GROQ_REASONING_EFFORT }
+          : {}),
       },
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);
@@ -181,6 +186,7 @@ export class LineEchoStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(180), // Longer timeout for potential long searches
       environment: {
         XAI_API_KEY_SECRET_NAME: secrets.xaiApiKeySecret.secretName,
+        XAI_MODEL: process.env.XAI_MODEL || 'grok-4.6',
       },
     });
     secrets.xaiApiKeySecret.grantRead(grokProcessorLambda);

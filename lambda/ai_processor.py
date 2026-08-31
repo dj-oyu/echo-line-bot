@@ -19,8 +19,30 @@ GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
 CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
 
 AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
-SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3-0324")
-GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
+SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "qwen/qwen3.6-27b")
+
+
+def default_reasoning_effort(model: str) -> str:
+    """Pick a reasoning_effort value the given Groq model actually accepts.
+
+    The vocabularies are disjoint: gpt-oss takes "low"/"medium"/"high" while
+    qwen3.6 takes "none"/"default". Deriving the default from the model keeps
+    GROQ_MODEL switchable on its own without 400ing every request.
+
+    Args:
+        model: Groq model id, e.g. "qwen/qwen3.6-27b"
+
+    Returns:
+        A reasoning_effort value valid for that model
+    """
+    return "medium" if model.startswith("openai/gpt-oss") else "none"
+
+
+# An explicit GROQ_REASONING_EFFORT wins, but it must match the model's vocabulary.
+GROQ_REASONING_EFFORT = os.environ.get("GROQ_REASONING_EFFORT") or default_reasoning_effort(
+    GROQ_MODEL
+)
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
@@ -179,7 +201,7 @@ def get_ai_response(messages: list) -> dict:
         else:
             response = get_groq_client().chat.completions.create(  # type: ignore[call-overload]
                 model=GROQ_MODEL,
-                reasoning_effort="medium",
+                reasoning_effort=GROQ_REASONING_EFFORT,
                 messages=api_messages,
                 temperature=0.7,
                 max_tokens=1000,
