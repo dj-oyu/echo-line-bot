@@ -1,112 +1,62 @@
-# Kansai dialect prompt pilot
+# 関西弁プロンプトの手動比較ツール
 
-This is an isolated, explicitly requested first-stage evaluation. It does not import the
-production handlers, send LINE messages, execute a search, read conversation
-history, or use AWS credentials. The production prompt remains unchanged.
+本番のプロンプトは従来のままです。このツールは独立した検証用で、本番Lambdaを
+呼び出したり、LINE送信・検索・会話履歴への書き込みを行ったりしません。
+会話中心の別案は採用せず、そのプロンプト・ケース・専用ランナーは削除しました。
 
-## Fixed design
+## 手動比較の仕様
 
-- Baseline: commit `3ef6fdc1794cd7952b3ce25c41af8ed4e5ed5185`; the evaluator
-  verifies the SHA-256 of `lambda/ai_processor.py` before doing anything live
-- Inputs: `やっほい` and `おすすめの飲食店ある?`, each with empty history
-- Ten adjacent A/B pairs per input: 40 requests total, with five AB and five BA
-  pairs for each input; no automatic retry
-- Groq `openai/gpt-oss-20b`, reasoning `medium`, temperature `0.7`, maximum
-  generated tokens `1000`, original tool definition and `tool_choice: auto`
-- Date/time: October 7, 2026 at 20:00 JST, autumn; identical in both arms
-- A: original prompt. B: remove Kansai-speaking directions and dialect examples;
-  preserve Japanese-language behavior, friendliness, politeness, and all other
-  traits. Neutralize the nighttime speech example `今日はどうやった？` to
-  `今日はどうだった？`. The frozen greeting is already standard Japanese
-- Preserve `時々関西の食べ物や文化について話したがる` in both arms
-- Omit a seed parameter, matching production; capture returned model and
-  fingerprint to expose provider changes
+- Aは既存の関西弁プロンプト、Bは関西弁の話し方指定だけを除いた比較用プロンプト
+- 別の「関西の食べ物や文化について話したがる」設定は両方に維持
+- 入力は `やっほい` と `おすすめの飲食店ある?`、毎回履歴なし
+- 各入力10組、合計40リクエスト。各入力でAB/BAを5組ずつ交互に実施
+- 2026年10月7日20:00 JSTという同じ日時文脈に固定
+- Groq `openai/gpt-oss-20b`、reasoning medium、temperature 0.7、max_tokens 1000
+- 現行のツール定義と `tool_choice: auto` を使用。ツール呼び出しは記録だけ行う
+- 現行ソースのSHA-256を確認し、想定した基準コードと違えば送信前に停止
 
-The manifest contains both full prompts, their hashes, the exact diff, the tool
-schema and its hash, the request settings, and the fixed input/date context.
-
-## Run safely
-
-Run offline checks first:
+## 起動と安全策
 
 ```sh
-python -m unittest discover -s scripts/tests -p 'test_dialect_ab.py' -v
+python -m unittest discover -s scripts/tests -p 'test_*.py' -v
 python scripts/dialect_ab.py --output offline-plan
 ```
 
-The default command creates a plan and makes no network calls. Live execution
-accepts a first-attempt `workflow_dispatch` in `dj-oyu/echo-line-bot`.
-The `Kansai dialect prompt pilot` workflow injects the existing environment
-`env` secret `GROQ_API_KEY` only into the evaluation step. It has read-only
-repository permissions, no install step, no AWS setup, no general automatic trigger,
-and no model retry. Requests go only to the fixed HTTPS Groq endpoint, with
-redirects refused. Do not rerun a failed job: it may already have billed calls.
-Inspect partial results before deciding whether further calls are authorized.
+標準実行は計画を出力するだけで、ネットワークに接続しません。
+ライブ実行はGitHub Actionsの `Kansai dialect prompt pilot` を手動で起動したときだけです。
+push、PR、mainへのマージ、デプロイを理由に有料比較が始まることはありません。
+手動の再実行にも費用が発生するので、失敗したジョブを繰り返さず、残された結果を先に確認してください。
 
-The requested branch-first run was attempted before any main merge, using a
-one-advance push guard tied to the reviewed branch and exact prior commit.
-[Run 37652099723](https://github.com/dj-oyu/echo-line-bot/actions/runs/37652099723)
-passed all 16 offline checks but received HTTP 403 on its first Groq request.
-There were no successful model responses and no retries. The one attempted
-request has unknown billable usage; an A/B conclusion is not available.
+手動ワークフローは既存の環境 `env` にある `GROQ_API_KEY` を比較ステップだけに渡します。
+本番ロックのOpenAI SDK 3.6.0を使い、リトライ・リダイレクトを無効化し、各呼び出しは
+1ネットワークリクエストに制限します。通信先はGroqの既存APIエンドポイントです。
+モデル変更、エラー、使用量の異常、時間上限で停止します。
 
-The temporary push trigger and runtime push guard have now been removed.
-The remaining workflow is manual-only. No automatic continuation is configured.
-Investigate the provider access denial before approving another live run; do not
-change credentials, impersonate another client, or alter access controls to
-work around it. No main merge or production deployment was performed. The
-existing production deployment workflow is unchanged.
+推論料金の上限はUSD 0.10です。各リクエスト前に、モデルの最大入力文脈131,072トークンと
+出力上限1,000トークンの料金を予約してから、残予算を確認します。試行数は最大40回です。
+料金計算は[Groqの公表料金](https://console.groq.com/docs/model/openai/gpt-oss-20b)
+（入力USD 0.075/M、出力USD 0.30/M）による推定で、Actions料金や税金は含みません。
 
-## Cost and stopping conditions
+認証情報、リクエストヘッダー、プロバイダーの思考内容、自由形式のエラー本文は保存しません。
+エラーはステータスと許可された固定の種別・コードだけを記録します。未知の利用料を伴う
+失敗は、無料だったとは扱いません。
 
-[Groq's published rate](https://console.groq.com/docs/model/openai/gpt-oss-20b)
-is USD 0.075 per million input tokens and USD 0.30 per million output tokens.
-At 2,000 input plus 1,000 output tokens per request, 40 calls estimate USD 0.018.
-This excludes GitHub Actions fees, account-specific terms, and taxes.
+## 結果
 
-The harness enforces 40 total attempts, an 8,192-byte request size cap, a
-1,000-output-token limit, a USD 0.10 inference budget guard, and a 12-minute
-start-of-request deadline. Each request has a 30-second timeout. It stops on
-the first HTTP, accounting, response, or model mismatch error and records no
-exception messages or HTTP error bodies. The workflow has a 20-minute ceiling.
-Reported cost is an estimate from successful usage accounting; failed calls
-with missing usage are explicitly counted as unknown cost.
+7日間のActions artifactに、全文プロンプト・差分・ハッシュ・設定、最終返答、ツール引数、
+使用トークン数、時間、fingerprint、エラーが入ります。`blind-review.json` は条件名・
+トークン数・時間を除いた評価用データです。採点後に `blind-key.json` で条件を戻します。
+結果を保存したい場合は、artifactの期限前にダウンロードしてください。
 
-## Results and blinded review
+2026年10月7日の[40回比較](https://github.com/dj-oyu/echo-line-bot/actions/runs/37657539068)は
+40/40回成功、推定推論料金USD 0.0062673でした。場所を尋ねた飲食店返答はA 4/10、B 9/10。
+大阪だけを推薦した返答は両方1/10、挨拶での検索要求はA 1/10、B 2/10でした。
+指定を外すだけでは場所の決め打ちや不要な検索は解消しませんでした。
 
-The seven-day artifact contains only synthetic evaluation data:
+別途の[会話中心案28回比較](https://github.com/dj-oyu/echo-line-bot/actions/runs/37671463203)も
+28/28回成功しましたが、雑談の検索や必要な確認質問の不足が残ったため、本番には採用していません。
+初段の応答時間は短くなっても検索要求が増えたので、LINE全体の待ち時間の改善とは見なしていません。
+この別案の過去結果はActions artifactとGit履歴に残ります。
 
-- `manifest.json`: baseline, full prompts/diff/hashes, settings and limitations
-- `responses.json`: per-attempt arm/pair, visible answer, raw tool arguments,
-  model/fingerprint, token usage, estimated cost, latency and safe error class
-- `blind-review.json`: shuffled visible answers/tool requests, without arm,
-  token counts, latency or identifying response metadata
-- `blind-key.json`: reveal only after scoring the blinded content
-- `summary.json`: run status, attempts, successful responses and estimated cost
-
-Provider reasoning fields and tagged reasoning are excluded. Credential values,
-request headers and exception text are never written to results. The workflow
-does not print model outputs to logs.
-
-Score each blinded sample manually, recording evidence and an explicit
-`yes`, `no`, or `unclear` for each criterion:
-
-1. **Assumed Osaka location:** Did the answer or search query scope the user's
-   unspecified location to Osaka or Osaka neighborhoods? Merely mentioning
-   Kansai culture is not enough. Distinguish conditional suggestions such as
-   "if you mean Osaka" from an actual assumption
-2. **Asked for location:** Did the answer ask for an area before recommending
-   specific restaurants? Record whether it nevertheless supplied a location
-3. **Greeting search:** For `やっほい`, did it request any tool call? A greeting
-   alone does not require a current-information search
-4. **Unrelated search:** Is the requested search unrelated to the user's input?
-   Do not automatically classify every restaurant search as unnecessary
-5. **Dialect adherence:** Did the visible answer use Kansai speech? This is a
-   manipulation check, not the primary geographic outcome
-
-Report counts per arm and input, paired changes, unclear cases, errors and
-truncations. Check fingerprint changes before interpreting differences. A
-small two-input pilot cannot establish a general causal claim. Because the
-Kansai food/culture trait remains in both arms, unchanged Osaka bias would
-not rule out bias from that separate persona cue. The downstream Grok search
-prompt and search results are outside this pilot.
+いずれも少数の探索的比較です。関西文化への設定、複数のprovider fingerprint、入力・出力の
+長さ、ツール利用の違いを考慮する必要があり、一般的な因果関係や速度向上の証明にはなりません。

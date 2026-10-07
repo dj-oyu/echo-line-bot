@@ -31,7 +31,7 @@ jobs:
         run: |
           uv sync --frozen
           uv run --frozen --no-sync python -c 'import openai; assert openai.__version__ == "3.6.0"'
-          uv run --frozen --no-sync python -m unittest discover -s scripts/tests -p 'test_dialect_*.py' -v
+          uv run --frozen --no-sync python -m unittest discover -s scripts/tests -p 'test_*.py' -v
       - name: Run 40 bounded Groq requests
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

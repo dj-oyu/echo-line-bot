@@ -10,12 +10,9 @@ from pathlib import Path
 import random
 import re
 import time
-import urllib.error
-import urllib.request
 
 SOURCE_COMMIT = "3ef6fdc1794cd7952b3ce25c41af8ed4e5ed5185"
 SOURCE_SHA256 = "eaed80e0c2ecd0841c267d85d36948b2a7dbacad92dff6adb9afd9ca1fe68ca1"
-ENDPOINT = "https://api.groq.com/openai/v1/chat/completions"
 INPUTS = ("やっほい", "おすすめの飲食店ある?")
 SETTINGS = {
     "model": "openai/gpt-oss-20b",
@@ -28,7 +25,7 @@ DATE_INFO = {"date": "2026年10月07日", "weekday": "水", "time": "20時00分"
 GREETING = "こんばんは！🌙 今日も一日お疲れさまでした〜"
 MAX_CALLS = 40
 MAX_REQUEST_BYTES = 8192
-MAX_RESPONSE_BYTES = 524288
+MAX_INPUT_TOKENS = 131072
 BUDGET_USD = 0.10
 INPUT_USD_PER_TOKEN = 0.075 / 1_000_000
 OUTPUT_USD_PER_TOKEN = 0.30 / 1_000_000
@@ -133,14 +130,9 @@ def make_plan(source_path: Path) -> dict:
     return {"prompts": prompts, "tools": tools, "schedule": schedule}
 
 
-class NoRedirects(urllib.request.HTTPRedirectHandler):
-    def redirect_request(self, req, fp, code, msg, headers, newurl):
-        raise urllib.error.HTTPError(req.full_url, code, "Redirect refused", headers, fp)
-
-
 def call_groq(request: dict, key: str) -> dict:
     """Use the verified production SDK with one-request/no-retry safeguards."""
-    from dialect_diagnostic import sdk_call
+    from eval_groq_transport import sdk_call
     return sdk_call(request, key, {"network_requests_started": 0})
 
 
@@ -238,7 +230,7 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
     write_outputs(output, plan, records, status, key)
     for item in plan["schedule"]:
         spent = sum(r.get("response", {}).get("cost_estimate_usd", 0) for r in records)
-        next_allowance = MAX_REQUEST_BYTES * INPUT_USD_PER_TOKEN + 1000 * OUTPUT_USD_PER_TOKEN
+        next_allowance = MAX_INPUT_TOKENS * INPUT_USD_PER_TOKEN + 1000 * OUTPUT_USD_PER_TOKEN
         if time.monotonic() - started > 720 or spent + next_allowance > BUDGET_USD:
             status = "stopped_at_time_or_budget_guard"
             break
@@ -250,16 +242,12 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
             record["response"] = response
             if response["model"] != SETTINGS["model"]:
                 raise ValueError("Unexpected model")
-            if (response["usage"]["prompt_tokens"] > MAX_REQUEST_BYTES
+            if (response["usage"]["prompt_tokens"] > MAX_INPUT_TOKENS
                     or response["usage"]["completion_tokens"] > 1000):
                 raise ValueError("Unexpected token accounting")
-        except urllib.error.HTTPError as exc:
-            record["error"] = {"type": "HTTPError", "status": exc.code}
-            exc.close()
-            status = "stopped_after_error_no_retry"
         except Exception as exc:
-            # Error class only: exception text can contain credentials or HTTP bodies.
-            record["error"] = {"type": type(exc).__name__}
+            from eval_groq_transport import safe_error
+            record["error"] = {"exception_class": type(exc).__name__, **safe_error(exc)}
             status = "stopped_after_error_no_retry"
         record["latency_seconds"] = round(time.monotonic() - before, 4)
         write_outputs(output, plan, records, status, key)
@@ -273,25 +261,11 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
 
 
 def live_execution_allowed() -> bool:
-    if not (
+    return (
         os.environ.get("GITHUB_ACTIONS") == "true"
+        and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
         and os.environ.get("GITHUB_RUN_ATTEMPT") == "1"
         and os.environ.get("GITHUB_REPOSITORY") == "dj-oyu/echo-line-bot"
-    ):
-        return False
-    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
-        return True
-    branch = "refs/heads/feature/dialect-prompt-pilot-20261007"
-    if os.environ.get("GITHUB_EVENT_NAME") != "push" or os.environ.get("GITHUB_REF") != branch:
-        return False
-    event = json.loads(Path(os.environ["GITHUB_EVENT_PATH"]).read_text())
-    head = event.get("head_commit") or {}
-    return (
-        event.get("ref") == branch
-        and event.get("before") == "d56fddd573ba4f0c772d5c2413341e4800f1eab1"
-        and all(event.get(k) is False for k in ("created", "deleted", "forced"))
-        and head.get("message") == "test: run approved 40-call SDK pilot 20261007-pr73-02"
-        and head.get("id") == os.environ.get("GITHUB_SHA")
     )
 
 

@@ -4,13 +4,14 @@ import collections
 import importlib.util
 import json
 import os
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import MagicMock, patch
-import urllib.error
 
 ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(ROOT / "scripts"))
 SPEC = importlib.util.spec_from_file_location("dialect_ab", ROOT / "scripts" / "dialect_ab.py")
 ab = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(ab)
@@ -128,7 +129,10 @@ class TestSafety(unittest.TestCase):
         calls = []
         def failing(request, key):
             calls.append(request)
-            raise urllib.error.HTTPError(ab.ENDPOINT, 429, "SECRET IN ERROR", {}, None)
+            error = RuntimeError("SECRET IN ERROR")
+            error.status_code = 429
+            error.body = {"error": {"message": "SECRET IN ERROR"}}
+            raise error
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             self.assertEqual(ab.run(self.plan, output, "key", failing), 1)
@@ -162,15 +166,10 @@ class TestSafety(unittest.TestCase):
         helper = MagicMock()
         helper.sdk_call.return_value = {"synthetic": True}
         request = self.plan["schedule"][0]["request"]
-        with patch.dict("sys.modules", {"dialect_diagnostic": helper}):
+        with patch.dict("sys.modules", {"eval_groq_transport": helper}):
             result = ab.call_groq(request, "synthetic")
         self.assertEqual(result, {"synthetic": True})
         helper.sdk_call.assert_called_once_with(request, "synthetic", {"network_requests_started": 0})
-
-    def test_redirect_refused(self):
-        request = type("Request", (), {"full_url": ab.ENDPOINT})()
-        with self.assertRaises(urllib.error.HTTPError):
-            ab.NoRedirects().redirect_request(request, None, 302, "redirect", {}, "https://invalid.test")
 
     def test_execution_requires_manual_first_attempt(self):
         valid = {"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "workflow_dispatch",
@@ -189,23 +188,6 @@ class TestSafety(unittest.TestCase):
         }, clear=True):
             self.assertFalse(ab.live_execution_allowed())
 
-    def test_sdk_pilot_requires_exact_approved_branch_advance(self):
-        branch = "refs/heads/feature/dialect-prompt-pilot-20261007"
-        event = {"ref": branch, "before": "d56fddd573ba4f0c772d5c2413341e4800f1eab1",
-                 "created": False, "deleted": False, "forced": False,
-                 "head_commit": {"id": "a" * 40, "message": "test: run approved 40-call SDK pilot 20261007-pr73-02"}}
-        with tempfile.TemporaryDirectory() as directory:
-            path = Path(directory) / "event.json"
-            env = {"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "push", "GITHUB_RUN_ATTEMPT": "1",
-                   "GITHUB_REPOSITORY": "dj-oyu/echo-line-bot", "GITHUB_REF": branch,
-                   "GITHUB_SHA": "a" * 40, "GITHUB_EVENT_PATH": str(path)}
-            path.write_text(json.dumps(event))
-            with patch.dict(os.environ, env, clear=True):
-                self.assertTrue(ab.live_execution_allowed())
-            for field, bad in (("before", "b" * 40), ("created", True), ("deleted", True), ("forced", True)):
-                path.write_text(json.dumps({**event, field: bad}))
-                with patch.dict(os.environ, env, clear=True):
-                    self.assertFalse(ab.live_execution_allowed())
 
 
 if __name__ == "__main__":
