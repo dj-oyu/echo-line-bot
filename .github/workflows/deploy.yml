@@ -73,6 +73,10 @@ jobs:
       run: |
         uv run pytest lambda/tests -v
         
+    - name: Run offline evaluation-tool tests
+      # Synthetic fixtures and mock transports only; no provider credentials.
+      run: uv run python -m unittest discover -s scripts/tests -p 'test_*.py' -v
+        
     - name: Install CDK dependencies
       run: |
         cd cdk
