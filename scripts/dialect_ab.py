@@ -33,6 +33,9 @@ BUDGET_USD = 0.10
 INPUT_USD_PER_TOKEN = 0.075 / 1_000_000
 OUTPUT_USD_PER_TOKEN = 0.30 / 1_000_000
 CULTURE_CUE = "- 時々関西の食べ物や文化について話したがる"
+APPROVED_BRANCH = "refs/heads/feature/dialect-prompt-pilot-20261007"
+APPROVED_PUSH_MESSAGE = "test: run approved dialect pilot 20261007-pr73-01"
+APPROVED_BEFORE_SHA = "16b98aef59c47e2d421e7a6baa7e21a82bba24e8"
 
 
 def digest(text: str) -> str:
@@ -201,6 +204,8 @@ def write_outputs(output: Path, plan: dict, records: list, status: str, key: str
             plan["prompts"]["B"].splitlines(keepends=True), fromfile="A", tofile="B")),
         "budget_usd": BUDGET_USD, "cost_is_estimate_excluding_runner_fees": True,
         "pricing_source": "https://console.groq.com/docs/model/openai/gpt-oss-20b",
+        "execution": {k: os.environ.get(k) for k in (
+            "GITHUB_EVENT_NAME", "GITHUB_REF", "GITHUB_SHA", "GITHUB_RUN_ID", "GITHUB_RUN_ATTEMPT")},
         "limitations": [
             "Small pilot; fixed two inputs and one date/time; not general proof",
             "Kansai food/culture persona remains in both arms",
@@ -277,6 +282,34 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
     return 0 if status == "complete" else 1
 
 
+def live_execution_allowed() -> bool:
+    if (os.environ.get("GITHUB_ACTIONS") != "true"
+            or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
+            or os.environ.get("GITHUB_REPOSITORY") != "dj-oyu/echo-line-bot"):
+        return False
+    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+        return True
+    if (os.environ.get("GITHUB_EVENT_NAME") != "push"
+            or os.environ.get("GITHUB_REF") != APPROVED_BRANCH):
+        return False
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    if not event_path:
+        return False
+    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
+    head = event.get("head_commit") or {}
+    return (
+        event.get("ref") == APPROVED_BRANCH
+        and event.get("before") == APPROVED_BEFORE_SHA
+        and event.get("created") is False
+        and event.get("deleted") is False
+        and event.get("forced") is False
+        and head.get("message") == APPROVED_PUSH_MESSAGE
+        and isinstance(head.get("id"), str)
+        and re.fullmatch(r"[0-9a-f]{40}", head["id"]) is not None
+        and head["id"] == os.environ.get("GITHUB_SHA")
+    )
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--execute", action="store_true")
@@ -288,11 +321,8 @@ def main() -> int:
         write_outputs(args.output, plan, [], "prepared_no_requests")
         print("Prepared 40 requests; no network calls made")
         return 0
-    if (os.environ.get("GITHUB_ACTIONS") != "true"
-            or os.environ.get("GITHUB_EVENT_NAME") != "workflow_dispatch"
-            or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
-            or os.environ.get("GITHUB_REPOSITORY") != "dj-oyu/echo-line-bot"):
-        raise ValueError("Live execution requires the approved first-attempt manual workflow")
+    if not live_execution_allowed():
+        raise ValueError("Live execution requires an approved first-attempt workflow event")
     key = os.environ.pop("GROQ_API_KEY", "")
     if not key:
         raise ValueError("Runtime Groq credential unavailable")

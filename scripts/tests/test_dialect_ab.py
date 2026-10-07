@@ -176,12 +176,47 @@ class TestSafety(unittest.TestCase):
     def test_execution_requires_manual_first_attempt(self):
         valid = {"GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "workflow_dispatch",
                  "GITHUB_RUN_ATTEMPT": "1", "GITHUB_REPOSITORY": "dj-oyu/echo-line-bot"}
-        for field, bad in (("GITHUB_ACTIONS", "false"), ("GITHUB_EVENT_NAME", "push"),
+        for field, bad in (("GITHUB_ACTIONS", "false"), ("GITHUB_EVENT_NAME", "pull_request"),
                            ("GITHUB_RUN_ATTEMPT", "2"), ("GITHUB_REPOSITORY", "other/repo")):
             with self.subTest(field=field), patch.dict(os.environ, {**valid, field: bad}), \
                  patch("sys.argv", ["dialect_ab.py", "--execute"]):
                 with self.assertRaises(ValueError):
                     ab.main()
+
+    def test_push_requires_exact_branch_marker_sha_and_first_attempt(self):
+        sha = "a" * 40
+        event = {"ref": ab.APPROVED_BRANCH, "before": ab.APPROVED_BEFORE_SHA,
+                 "created": False, "deleted": False, "forced": False, "head_commit": {
+            "message": ab.APPROVED_PUSH_MESSAGE, "id": sha}}
+        with tempfile.TemporaryDirectory() as directory:
+            event_path = Path(directory) / "event.json"
+            event_path.write_text(json.dumps(event))
+            valid = {
+                "GITHUB_ACTIONS": "true", "GITHUB_EVENT_NAME": "push",
+                "GITHUB_RUN_ATTEMPT": "1", "GITHUB_REPOSITORY": "dj-oyu/echo-line-bot",
+                "GITHUB_REF": ab.APPROVED_BRANCH, "GITHUB_SHA": sha,
+                "GITHUB_EVENT_PATH": str(event_path),
+            }
+            with patch.dict(os.environ, valid, clear=True):
+                self.assertTrue(ab.live_execution_allowed())
+            for field, bad in (("GITHUB_REF", "refs/heads/main"), ("GITHUB_SHA", "b" * 40),
+                               ("GITHUB_RUN_ATTEMPT", "2"), ("GITHUB_EVENT_NAME", "pull_request"),
+                               ("GITHUB_REPOSITORY", "fork/repo")):
+                with self.subTest(field=field), patch.dict(os.environ, {**valid, field: bad}, clear=True):
+                    self.assertFalse(ab.live_execution_allowed())
+            for bad_event in (
+                {**event, "ref": "refs/heads/main"},
+                {**event, "before": "b" * 40},
+                {**event, "created": True},
+                {**event, "deleted": True},
+                {**event, "forced": True},
+                {**event, "head_commit": {"message": "ordinary later push", "id": sha}},
+                {**event, "head_commit": {"message": ab.APPROVED_PUSH_MESSAGE, "id": "bad"}},
+                {"ref": ab.APPROVED_BRANCH},
+            ):
+                event_path.write_text(json.dumps(bad_event))
+                with patch.dict(os.environ, valid, clear=True):
+                    self.assertFalse(ab.live_execution_allowed())
 
 
 if __name__ == "__main__":

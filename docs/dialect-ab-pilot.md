@@ -1,6 +1,6 @@
 # Kansai dialect prompt pilot
 
-This is an isolated, manual-only first-stage evaluation. It does not import the
+This is an isolated, explicitly requested first-stage evaluation. It does not import the
 production handlers, send LINE messages, execute a search, read conversation
 history, or use AWS credentials. The production prompt remains unchanged.
 
@@ -35,18 +35,31 @@ python scripts/dialect_ab.py --output offline-plan
 ```
 
 The default command creates a plan and makes no network calls. Live execution
-only accepts a first-attempt `workflow_dispatch` in `dj-oyu/echo-line-bot`.
+accepts a first-attempt `workflow_dispatch` in `dj-oyu/echo-line-bot`, or the
+one explicitly marked push described below.
 The `Kansai dialect prompt pilot` workflow injects the existing environment
 `env` secret `GROQ_API_KEY` only into the evaluation step. It has read-only
-repository permissions, no install step, no AWS setup, no automatic trigger,
+repository permissions, no install step, no AWS setup, no general automatic trigger,
 and no model retry. Requests go only to the fixed HTTPS Groq endpoint, with
 redirects refused. Do not rerun a failed job: it may already have billed calls.
 Inspect partial results before deciding whether further calls are authorized.
 
-Manual workflows must first exist on the default branch. Registering this
-workflow is separate from the live run. The existing deployment workflow runs
-on every main push; do not merge this PR without an agreed way to prevent an
-unintended production deploy. This change does not alter that workflow.
+To run this approved pilot before merging, the workflow temporarily accepts a
+push only to `feature/dialect-prompt-pilot-20261007` that changes its workflow
+file and has the exact head commit message
+`test: run approved dialect pilot 20261007-pr73-01`. Both workflow and harness
+check the event, repository, branch, first attempt, and expected pre-run branch
+head `16b98aef59c47e2d421e7a6baa7e21a82bba24e8`; created, deleted and forced
+pushes are rejected. The harness also matches the event head SHA to the
+checked-out commit. Other ordinary pushes and PR synchronizations
+cannot start the evaluator. After the run reaches a terminal state, remove this
+temporary push trigger and guard with an ordinary commit. Do not reuse the
+approval marker or rerun the job. A separate manual run requires a new explicit
+decision after inspecting existing results.
+
+No main merge is needed for the branch push run. The existing deployment
+workflow runs on every main push; this PR must not be merged merely to run the
+pilot. This change does not alter that workflow.
 
 ## Cost and stopping conditions
 
