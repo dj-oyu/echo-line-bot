@@ -2,9 +2,6 @@ name: Kansai dialect prompt pilot
 
 on:
   workflow_dispatch:
-  push:
-    branches: [feature/dialect-prompt-pilot-20261007]
-    paths: [.github/workflows/dialect-ab.yml]
 
 permissions:
   contents: read
@@ -15,14 +12,7 @@ concurrency:
 
 jobs:
   compare:
-    if: >-
-      github.repository == 'dj-oyu/echo-line-bot' && github.run_attempt == 1 &&
-      (github.event_name == 'workflow_dispatch' ||
-       (github.event_name == 'push' &&
-        github.ref == 'refs/heads/feature/dialect-prompt-pilot-20261007' &&
-        github.event.before == 'd56fddd573ba4f0c772d5c2413341e4800f1eab1' &&
-        github.event.created == false && github.event.deleted == false && github.event.forced == false &&
-        github.event.head_commit.message == 'test: run approved 40-call SDK pilot 20261007-pr73-02'))
+    if: github.repository == 'dj-oyu/echo-line-bot' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     environment: env
     timeout-minutes: 20
