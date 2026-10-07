@@ -33,9 +33,6 @@ BUDGET_USD = 0.10
 INPUT_USD_PER_TOKEN = 0.075 / 1_000_000
 OUTPUT_USD_PER_TOKEN = 0.30 / 1_000_000
 CULTURE_CUE = "- 時々関西の食べ物や文化について話したがる"
-APPROVED_BRANCH = "refs/heads/feature/dialect-prompt-pilot-20261007"
-APPROVED_PUSH_MESSAGE = "test: run approved dialect pilot 20261007-pr73-01"
-APPROVED_BEFORE_SHA = "16b98aef59c47e2d421e7a6baa7e21a82bba24e8"
 
 
 def digest(text: str) -> str:
@@ -266,6 +263,7 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
                 raise ValueError("Unexpected token accounting")
         except urllib.error.HTTPError as exc:
             record["error"] = {"type": "HTTPError", "status": exc.code}
+            exc.close()
             status = "stopped_after_error_no_retry"
         except Exception as exc:
             # Error class only: exception text can contain credentials or HTTP bodies.
@@ -283,30 +281,11 @@ def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
 
 
 def live_execution_allowed() -> bool:
-    if (os.environ.get("GITHUB_ACTIONS") != "true"
-            or os.environ.get("GITHUB_RUN_ATTEMPT") != "1"
-            or os.environ.get("GITHUB_REPOSITORY") != "dj-oyu/echo-line-bot"):
-        return False
-    if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
-        return True
-    if (os.environ.get("GITHUB_EVENT_NAME") != "push"
-            or os.environ.get("GITHUB_REF") != APPROVED_BRANCH):
-        return False
-    event_path = os.environ.get("GITHUB_EVENT_PATH")
-    if not event_path:
-        return False
-    event = json.loads(Path(event_path).read_text(encoding="utf-8"))
-    head = event.get("head_commit") or {}
     return (
-        event.get("ref") == APPROVED_BRANCH
-        and event.get("before") == APPROVED_BEFORE_SHA
-        and event.get("created") is False
-        and event.get("deleted") is False
-        and event.get("forced") is False
-        and head.get("message") == APPROVED_PUSH_MESSAGE
-        and isinstance(head.get("id"), str)
-        and re.fullmatch(r"[0-9a-f]{40}", head["id"]) is not None
-        and head["id"] == os.environ.get("GITHUB_SHA")
+        os.environ.get("GITHUB_ACTIONS") == "true"
+        and os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+        and os.environ.get("GITHUB_RUN_ATTEMPT") == "1"
+        and os.environ.get("GITHUB_REPOSITORY") == "dj-oyu/echo-line-bot"
     )
 
 

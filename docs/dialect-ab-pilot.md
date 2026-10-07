@@ -35,8 +35,7 @@ python scripts/dialect_ab.py --output offline-plan
 ```
 
 The default command creates a plan and makes no network calls. Live execution
-accepts a first-attempt `workflow_dispatch` in `dj-oyu/echo-line-bot`, or the
-one explicitly marked push described below.
+accepts a first-attempt `workflow_dispatch` in `dj-oyu/echo-line-bot`.
 The `Kansai dialect prompt pilot` workflow injects the existing environment
 `env` secret `GROQ_API_KEY` only into the evaluation step. It has read-only
 repository permissions, no install step, no AWS setup, no general automatic trigger,
@@ -44,22 +43,19 @@ and no model retry. Requests go only to the fixed HTTPS Groq endpoint, with
 redirects refused. Do not rerun a failed job: it may already have billed calls.
 Inspect partial results before deciding whether further calls are authorized.
 
-To run this approved pilot before merging, the workflow temporarily accepts a
-push only to `feature/dialect-prompt-pilot-20261007` that changes its workflow
-file and has the exact head commit message
-`test: run approved dialect pilot 20261007-pr73-01`. Both workflow and harness
-check the event, repository, branch, first attempt, and expected pre-run branch
-head `16b98aef59c47e2d421e7a6baa7e21a82bba24e8`; created, deleted and forced
-pushes are rejected. The harness also matches the event head SHA to the
-checked-out commit. Other ordinary pushes and PR synchronizations
-cannot start the evaluator. After the run reaches a terminal state, remove this
-temporary push trigger and guard with an ordinary commit. Do not reuse the
-approval marker or rerun the job. A separate manual run requires a new explicit
-decision after inspecting existing results.
+The requested branch-first run was attempted before any main merge, using a
+one-advance push guard tied to the reviewed branch and exact prior commit.
+[Run 37652099723](https://github.com/dj-oyu/echo-line-bot/actions/runs/37652099723)
+passed all 16 offline checks but received HTTP 403 on its first Groq request.
+There were no successful model responses and no retries. The one attempted
+request has unknown billable usage; an A/B conclusion is not available.
 
-No main merge is needed for the branch push run. The existing deployment
-workflow runs on every main push; this PR must not be merged merely to run the
-pilot. This change does not alter that workflow.
+The temporary push trigger and runtime push guard have now been removed.
+The remaining workflow is manual-only. No automatic continuation is configured.
+Investigate the provider access denial before approving another live run; do not
+change credentials, impersonate another client, or alter access controls to
+work around it. No main merge or production deployment was performed. The
+existing production deployment workflow is unchanged.
 
 ## Cost and stopping conditions
 
