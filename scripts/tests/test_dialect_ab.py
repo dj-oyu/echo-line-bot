@@ -5,9 +5,9 @@ import importlib.util
 import json
 import os
 import sys
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,6 +80,23 @@ class TestPlan(unittest.TestCase):
     def test_changed_prompt_does_not_silently_rewrite(self):
         with self.assertRaises(ValueError):
             ab.without_dialect("Different prompt")
+
+    def test_repinning_source_hash_cannot_change_prompt_history_or_schema(self):
+        original = (ROOT / "lambda" / "ai_processor.py").read_text(encoding="utf-8")
+        replacements = (
+            ("フレンドリーなAIアシスタント", "無愛想なAIアシスタント"),
+            ('strip_mentions(msg["content"])', 'msg["content"]'),
+            ('"description": "検索クエリ"', '"description": "different schema"'),
+        )
+        for before, after in replacements:
+            changed = original.replace(before, after)
+            self.assertNotEqual(changed, original)
+            with self.subTest(before=before), tempfile.TemporaryDirectory() as directory:
+                source = Path(directory) / "changed.py"
+                source.write_text(changed, encoding="utf-8")
+                with patch.object(ab, "SOURCE_SHA256", ab.digest(changed)):
+                    with self.assertRaisesRegex(ValueError, "invariants"):
+                        ab.extract_source(source)
 
 
 class TestSafety(unittest.TestCase):

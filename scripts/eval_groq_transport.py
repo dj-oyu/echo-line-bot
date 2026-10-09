@@ -1,5 +1,7 @@
 """Shared Groq evaluation transport with bounded requests and sanitized errors."""
 
+from typing import Any, cast
+
 SDK_VERSION = "3.6.0"
 SAFE_CODES = frozenset({
     "invalid_request_error", "permission_error", "permission_denied", "forbidden",
@@ -33,7 +35,7 @@ def sdk_call(request: dict, key: str, record: dict, transport=None) -> dict:
             raise RuntimeError("Additional network request blocked")
         record["network_requests_started"] += 1
 
-    kwargs = {"follow_redirects": False, "event_hooks": {"request": [count_request]}}
+    kwargs: dict[str, Any] = {"follow_redirects": False, "event_hooks": {"request": [count_request]}}
     if transport is not None:  # Used only by offline tests.
         kwargs["transport"] = transport
     with openai.OpenAI(
@@ -41,5 +43,5 @@ def sdk_call(request: dict, key: str, record: dict, transport=None) -> dict:
         max_retries=0, timeout=30,
         http_client=openai.DefaultHttpxClient(**kwargs),
     ) as client:
-        return client.chat.completions.create(**request).model_dump(mode="json")
+        return cast(dict, client.chat.completions.create(**request).model_dump(mode="json"))
 

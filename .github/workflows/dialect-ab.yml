@@ -2,6 +2,12 @@ name: Kansai dialect prompt pilot
 
 on:
   workflow_dispatch:
+    inputs:
+      provider:
+        description: Manual evaluation provider
+        type: choice
+        options: [groq, anthropic]
+        default: groq
 
 permissions:
   contents: read
@@ -12,7 +18,7 @@ concurrency:
 
 jobs:
   compare:
-    if: github.repository == 'dj-oyu/echo-line-bot' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch'
+    if: github.repository == 'dj-oyu/echo-line-bot' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch' && inputs.provider != 'anthropic'
     runs-on: ubuntu-latest
     environment: env
     timeout-minutes: 20
@@ -42,5 +48,38 @@ jobs:
         with:
           name: dialect-ab-${{ github.run_id }}
           path: dialect-ab-results/*.json
+          if-no-files-found: error
+          retention-days: 7
+
+  anthropic:
+    if: github.repository == 'dj-oyu/echo-line-bot' && github.run_attempt == 1 && github.event_name == 'workflow_dispatch' && inputs.provider == 'anthropic'
+    runs-on: ubuntu-latest
+    environment: env
+    timeout-minutes: 10
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Set up locked package runtime
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78
+      - name: Offline evaluation checks
+        run: |
+          uv sync --frozen
+          uv run --frozen --no-sync python -m unittest discover -s scripts/tests -p 'test_*.py' -v
+      - name: Run four bounded Haiku requests
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: uv run --frozen --no-sync python scripts/eval_anthropic.py --execute
+      - name: Save synthetic Haiku results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: anthropic-${{ github.run_id }}
+          path: anthropic-results/*.json
           if-no-files-found: error
           retention-days: 7
