@@ -64,6 +64,7 @@ mainブランチへのpush時に実行。
 |--------|-------------|
 | `SAMBA_NOVA_API_KEY` | SambaNova Cloud APIキー |
 | `GROQ_API_KEY` | Groq APIキー |
+| `ANTHROPIC_API_KEY` | Anthropic APIキー（`AI_BACKEND=anthropic` で必須） |
 | `XAI_API_KEY` | xAI APIキー |
 
 ## AWS Secrets Manager
@@ -82,6 +83,7 @@ aws secretsmanager create-secret --name NAME --secret-string 'VALUE'
 | LINE_CHANNEL_ACCESS_TOKEN | CHANNEL_ACCESS_TOKEN |
 | SAMBA_NOVA_API_KEY | SAMBA_NOVA_API_KEY |
 | GROQ_API_KEY | GROQ_API_KEY |
+| ANTHROPIC_API_KEY | ANTHROPIC_API_KEY |
 | XAI_API_KEY | XAI_API_KEY (JSON format) |
 
 ## Environment

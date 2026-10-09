@@ -20,6 +20,7 @@ import sys
 import unittest.mock
 
 HANDLERS = [
+    "anthropic",  # Lazy client must also be present in the deployment layer.
     "ai_processor",
     "grok_processor",
     "response_sender",

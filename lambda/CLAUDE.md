@@ -103,8 +103,9 @@ dependencies = [
 環境変数 `AI_BACKEND` で切り替え:
 - `groq` (デフォルト): Groq API使用
 - `sambanova`: SambaNova API使用
+- `anthropic`: Anthropic Messages API使用（`ANTHROPIC_MODEL=claude-haiku-5-5`）。キーは `ANTHROPIC_API_KEY_NAME` の Secrets Manager 参照。
 
-両方ともOpenAI互換APIを提供。
+Groq / SambaNova は OpenAI 互換 API。Anthropic は同じプロンプト・履歴・検索 schema を Messages API 形式に変換する。
 
 ### モデル設定
 

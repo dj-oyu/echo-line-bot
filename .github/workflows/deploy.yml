@@ -62,6 +62,7 @@ jobs:
         CONVERSATION_TABLE_NAME: test-conversations
         SAMBA_NOVA_API_KEY_NAME: test-samba-key
         GROQ_API_KEY_NAME: test-groq-key
+        ANTHROPIC_API_KEY_NAME: test-anthropic-key
         XAI_API_KEY_SECRET_NAME: test-xai-key
         STEP_FUNCTION_ARN: arn:aws:states:ap-northeast-1:000000000000:stateMachine:test
         AWS_DEFAULT_REGION: ap-northeast-1
@@ -94,6 +95,8 @@ jobs:
         
     - name: CDK Synthesize
       env:
+        AI_BACKEND: ${{ vars.AI_BACKEND }}
+        ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
         GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}
@@ -172,8 +175,33 @@ jobs:
         aws secretsmanager update-secret --secret-id XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}' ||
         aws secretsmanager create-secret --name XAI_API_KEY --secret-string '{"XAI_API_KEY":"${{ secrets.XAI_API_KEY }}"}'
         
+    - name: Sync Anthropic secret
+      env:
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        AI_BACKEND: ${{ vars.AI_BACKEND }}
+      shell: bash
+      run: |
+        if [ -z "$ANTHROPIC_API_KEY" ]; then
+          if [ "$AI_BACKEND" = "anthropic" ]; then
+            echo "ANTHROPIC_API_KEY is required for AI_BACKEND=anthropic" >&2
+            exit 1
+          fi
+          exit 0
+        fi
+        secret_file=$(mktemp)
+        trap 'rm -f "$secret_file"' EXIT
+        chmod 600 "$secret_file"
+        printf '%s' "$ANTHROPIC_API_KEY" > "$secret_file"
+        if aws secretsmanager describe-secret --secret-id ANTHROPIC_API_KEY >/dev/null 2>&1; then
+          aws secretsmanager put-secret-value --secret-id ANTHROPIC_API_KEY --secret-string "file://$secret_file" >/dev/null
+        else
+          aws secretsmanager create-secret --name ANTHROPIC_API_KEY --secret-string "file://$secret_file" >/dev/null
+        fi
+
     - name: Deploy to AWS
       env:
+        AI_BACKEND: ${{ vars.AI_BACKEND }}
+        ANTHROPIC_MODEL: ${{ vars.ANTHROPIC_MODEL }}
         SAMBANOVA_MODEL: ${{ vars.SAMBANOVA_MODEL }}
         GROQ_MODEL: ${{ vars.GROQ_MODEL }}
         GROQ_REASONING_EFFORT: ${{ vars.GROQ_REASONING_EFFORT }}

@@ -1,10 +1,10 @@
 # LINE AI チャットボット
 
-Groq の Qwen3.6 モデルと xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
+Groq / SambaNova / Anthropic と xAI の Grok を使用した、会話記憶機能付きの AI チャットボットです。関西弁で話す「あいちゃん」として設計されています。
 
 ## 機能
 
-- **デュアル AI 機能**: Groq の Qwen3.6-27B（既定）/ SambaNova Cloud の DeepSeek-V3.2 + xAI Grok-4.6 による高性能な会話
+- **AI バックエンド選択**: Groq の `openai/gpt-oss-20b`（既定）/ SambaNova の `DeepSeek-V3.2` / Anthropic の `claude-haiku-5-5` + xAI Grok-4.6 による会話と検索
 - **検索連携機能**: Grok の Agent Tools API（`web_search`）によるリアルタイム情報検索
 - **会話記憶**: DynamoDB を使用した文脈を考慮した会話継続（30分間）
 - **関西弁キャラクター**: 「あいちゃん」として関西弁で親しみやすく応答
@@ -97,6 +97,25 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
 - xAI アカウントと API キー
 
 ## セットアップ
+
+### Anthropic の選択
+
+GitHub の Environment `env` に Secrets `ANTHROPIC_API_KEY` と Variables
+`AI_BACKEND=anthropic` を設定します。`ANTHROPIC_MODEL` の既定は
+`claude-haiku-5-5` です。Groq を使い続ける場合は `AI_BACKEND` を未設定か `groq` にします。
+キーを設定するだけではバックエンドは切り替わりません。
+
+デプロイ用 Actions はキーを AWS Secrets Manager の `ANTHROPIC_API_KEY` に同期し、
+Lambda は `ANTHROPIC_API_KEY_NAME` に指定されたシークレットを実行時に読みます。
+キーの値を CDK 環境変数やコードには埋め込みません。
+
+Anthropic の Messages API に共通のプロンプト・履歴・検索 schema を渡します。
+思考ブロックを返信に含めず、検索は `tool_choice=auto` でモデルが判断します。
+複数の検索は順番を保ってクエリ・指示を改行で結合し、既存の Grok 段に一度渡します。
+不正な引数、空応答、途中打切り、拒否、API 失敗は既存の失敗返信になります。
+Haiku 5.5 では sampling 引数を省き、`effort=low`・`max_tokens=4096` を使用します。
+仕様: [公式移行ガイド](https://platform.claude.com/docs/en/models/haiku-5-5/migration-guide)。
+オフライン試験で検索の判断を模擬できますが、モデルの実際の検索判断は実 API で別途確認が必要です。
 
 ### 1. リポジトリのクローン
 
@@ -249,7 +268,7 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 4. **Step Functions**がAI 処理ワークフローを開始
 
 ### AI処理フロー
-5. **AI Processor Lambda**が会話履歴を取得し、Groq API（既定。`AI_BACKEND` で SambaNova に切替可）で応答を生成
+5. **AI Processor Lambda**が会話履歴を取得し、Groq API（既定。`AI_BACKEND` で SambaNova / Anthropic に切替可）で応答を生成
 6. Tool Call（検索要求）の有無を判定
    - **Tool Call あり**: 中間通知→Grok検索→検索結果を送信
    - **Tool Call なし**: 直接応答
@@ -289,7 +308,7 @@ pnpm run cdk deploy --require-approval never --ci -c useExistingTable=true
 
 ## AI の特徴
 
-- **デュアルAIエンジン**: Groq Qwen3.6-27B / SambaNova DeepSeek-V3.2（基本会話）+ xAI Grok-4.6（検索連携）
+- **AIエンジン**: Groq `openai/gpt-oss-20b` / SambaNova `DeepSeek-V3.2` / Anthropic `claude-haiku-5-5`（基本会話）+ xAI Grok-4.6（検索連携）
 - **キャラクター**: 関西弁で話す「あいちゃん」
 - **会話記憶**: 30分間の会話セッションを維持
 - **検索連携**: リアルタイム情報検索とTool Calling

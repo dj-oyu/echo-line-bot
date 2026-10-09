@@ -109,6 +109,7 @@ export class LineEchoStack extends cdk.Stack {
       lineChannelAccessToken: secretsmanager.Secret.fromSecretNameV2(this, 'LineChannelAccessToken', 'LINE_CHANNEL_ACCESS_TOKEN'),
       sambaNovaApiKey: secretsmanager.Secret.fromSecretNameV2(this, 'SambaNovaApiKey', 'SAMBA_NOVA_API_KEY'),
       groqApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'GroqApiKeySecret', 'GROQ_API_KEY'),
+      anthropicApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'AnthropicApiKeySecret', 'ANTHROPIC_API_KEY'),
       xaiApiKeySecret: secretsmanager.Secret.fromSecretNameV2(this, 'XaiApiKeySecret', 'XAI_API_KEY'),
     };
   }
@@ -182,6 +183,8 @@ export class LineEchoStack extends cdk.Stack {
         // Used only when a tool call fires, to tell the user a search started
         CHANNEL_ACCESS_TOKEN_NAME: secrets.lineChannelAccessToken.secretName,
         AI_BACKEND: process.env.AI_BACKEND || 'groq',
+        ANTHROPIC_API_KEY_NAME: secrets.anthropicApiKeySecret.secretName,
+        ANTHROPIC_MODEL: process.env.ANTHROPIC_MODEL || 'claude-haiku-5-5',
         SAMBANOVA_MODEL: process.env.SAMBANOVA_MODEL || 'DeepSeek-V3.2',
         GROQ_MODEL: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
         // Only forwarded when explicitly set: otherwise ai_processor derives a
@@ -193,6 +196,7 @@ export class LineEchoStack extends cdk.Stack {
     });
     secrets.sambaNovaApiKey.grantRead(aiProcessorLambda);
     secrets.groqApiKeySecret.grantRead(aiProcessorLambda);
+    secrets.anthropicApiKeySecret.grantRead(aiProcessorLambda);
     secrets.lineChannelAccessToken.grantRead(aiProcessorLambda);
 
     const grokProcessorLambda = new lambda.Function(this, 'GrokProcessor', {
