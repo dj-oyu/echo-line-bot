@@ -15,7 +15,7 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, cast
 
 import boto3
 
@@ -61,7 +61,7 @@ def get_secret(secret_name: str) -> str:
         Exception: If secret retrieval fails
     """
     try:
-        return _secrets_client().get_secret_value(SecretId=secret_name)["SecretString"]
+        return cast(str, _secrets_client().get_secret_value(SecretId=secret_name)["SecretString"])
     except Exception as e:
         logger.error("Error retrieving secret %s: %s", secret_name, e)
         raise

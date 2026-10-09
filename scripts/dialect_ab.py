@@ -6,13 +6,16 @@ import difflib
 import hashlib
 import json
 import os
-from pathlib import Path
 import random
 import re
 import time
+from pathlib import Path
+from typing import cast
 
-SOURCE_COMMIT = "3ef6fdc1794cd7952b3ce25c41af8ed4e5ed5185"
-SOURCE_SHA256 = "eaed80e0c2ecd0841c267d85d36948b2a7dbacad92dff6adb9afd9ca1fe68ca1"
+SOURCE_COMMIT = "6c6ad8fbfae728c6257048cdce98cf83b81c0d52"
+SOURCE_SHA256 = "2cb1788670b3183b02aa71915ea29710f640177cf1c6b0f6dc7f09bfa5d24131"
+# Retained from the original approved source, independently of provider code.
+SOURCE_INVARIANTS_SHA256 = "f214b334539fbd97a23689277cafc8e2fa2f1a716913abcd60a895c3b26cc10a"
 INPUTS = ("やっほい", "おすすめの飲食店ある?")
 SETTINGS = {
     "model": "openai/gpt-oss-20b",
@@ -43,6 +46,19 @@ def extract_source(source_path: Path) -> tuple[str, list]:
         raise ValueError("Production source differs from approved baseline")
     tree = ast.parse(source)
     functions = {n.name: n for n in tree.body if isinstance(n, ast.FunctionDef)}
+    tools_node = next(
+        n.value
+        for n in ast.walk(functions["get_ai_response"])
+        if isinstance(n, ast.Assign)
+        and any(isinstance(t, ast.Name) and t.id == "tools" for t in n.targets)
+    )
+    invariant_parts = [
+        ast.dump(functions["prepare_messages_for_api"]),
+        ast.dump(functions["strip_mentions"]),
+        ast.dump(tools_node),
+    ]
+    if digest(json.dumps(invariant_parts)) != SOURCE_INVARIANTS_SHA256:
+        raise ValueError("Production prompt/history/schema invariants differ from approved baseline")
     prompt_node = next(
         n.value
         for n in functions["prepare_messages_for_api"].body
@@ -73,12 +89,6 @@ def extract_source(source_path: Path) -> tuple[str, list]:
                 raise ValueError("Unexpected prompt interpolation")
         else:
             raise ValueError("Unexpected prompt component")
-    tools_node = next(
-        n.value
-        for n in ast.walk(functions["get_ai_response"])
-        if isinstance(n, ast.Assign)
-        and any(isinstance(t, ast.Name) and t.id == "tools" for t in n.targets)
-    )
     return "".join(parts), ast.literal_eval(tools_node)
 
 
@@ -106,7 +116,7 @@ def without_dialect(prompt: str) -> str:
 def make_plan(source_path: Path) -> dict:
     original, tools = extract_source(source_path)
     prompts = {"A": original, "B": without_dialect(original)}
-    schedule = []
+    schedule: list[dict] = []
     for trial in range(10):
         for case, user_text in enumerate(INPUTS):
             for variant in (("A", "B") if (trial + case) % 2 == 0 else ("B", "A")):
@@ -153,6 +163,8 @@ def sanitize_response(response: dict) -> dict:
     completion_tokens = usage.get("completion_tokens")
     if any(type(n) is not int or n < 0 for n in (prompt_tokens, completion_tokens)):
         raise ValueError("Missing or invalid usage accounting")
+    prompt_tokens = cast(int, prompt_tokens)
+    completion_tokens = cast(int, completion_tokens)
     # Explicit allowlist excludes reasoning, headers, and other provider payloads.
     calls = []
     for call in message.get("tool_calls") or []:
@@ -224,7 +236,7 @@ def write_outputs(output: Path, plan: dict, records: list, status: str, key: str
 
 
 def run(plan: dict, output: Path, key: str, request_fn=call_groq) -> int:
-    records = []
+    records: list[dict] = []
     started = time.monotonic()
     status = "running"
     write_outputs(output, plan, records, status, key)

@@ -300,6 +300,8 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
         "Environment": {
           "Variables": {
             "AI_BACKEND": "groq",
+            "ANTHROPIC_API_KEY_NAME": "ANTHROPIC_API_KEY",
+            "ANTHROPIC_MODEL": "claude-haiku-5-5",
             "CHANNEL_ACCESS_TOKEN_NAME": "LINE_CHANNEL_ACCESS_TOKEN",
             "CONVERSATION_TABLE_NAME": {
               "Ref": "ConversationHistoryD9612A4F",
@@ -413,6 +415,33 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                       "Ref": "AWS::AccountId",
                     },
                     ":secret:GROQ_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
+                    ":secret:ANTHROPIC_API_KEY-??????",
                   ],
                 ],
               },
@@ -1596,6 +1625,33 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
                     {
                       "Ref": "AWS::AccountId",
                     },
+                    ":secret:ANTHROPIC_API_KEY-??????",
+                  ],
+                ],
+              },
+            },
+            {
+              "Action": [
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:DescribeSecret",
+              ],
+              "Effect": "Allow",
+              "Resource": {
+                "Fn::Join": [
+                  "",
+                  [
+                    "arn:",
+                    {
+                      "Ref": "AWS::Partition",
+                    },
+                    ":secretsmanager:",
+                    {
+                      "Ref": "AWS::Region",
+                    },
+                    ":",
+                    {
+                      "Ref": "AWS::AccountId",
+                    },
                     ":secret:LINE_CHANNEL_ACCESS_TOKEN-??????",
                   ],
                 ],
@@ -2080,6 +2136,8 @@ exports[`LINE Echo Stack - Snapshot Tests CloudFormation Template Snapshots shou
       "Environment": {
         "Variables": [
           "AI_BACKEND",
+          "ANTHROPIC_API_KEY_NAME",
+          "ANTHROPIC_MODEL",
           "CHANNEL_ACCESS_TOKEN_NAME",
           "CONVERSATION_TABLE_NAME",
           "GROQ_API_KEY_NAME",
@@ -2266,6 +2324,14 @@ exports[`LINE Echo Stack - Snapshot Tests Security Configuration Snapshots shoul
     },
   ],
   "AiProcessorServiceRoleDefaultPolicy8F442964": [
+    {
+      "Actions": [
+        "secretsmanager:DescribeSecret",
+        "secretsmanager:GetSecretValue",
+      ],
+      "Effect": "Allow",
+      "Resources": 1,
+    },
     {
       "Actions": [
         "secretsmanager:DescribeSecret",

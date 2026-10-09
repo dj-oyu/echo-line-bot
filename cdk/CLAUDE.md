@@ -48,6 +48,7 @@ cdk/
 - `LINE_CHANNEL_ACCESS_TOKEN`
 - `SAMBA_NOVA_API_KEY`
 - `GROQ_API_KEY`
+- `ANTHROPIC_API_KEY`（AiProcessor のみ読み取り許可）
 - `XAI_API_KEY`
 
 ## Development Commands

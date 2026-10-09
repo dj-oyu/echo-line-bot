@@ -2,13 +2,16 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
-
-import openai
-import pytz
+from datetime import datetime
+from typing import TYPE_CHECKING
 
 import line_messaging
+import openai
+import pytz
 from markdown_to_line import render_to_line
+
+if TYPE_CHECKING:
+    import anthropic
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -16,10 +19,12 @@ logger.setLevel(logging.INFO)
 # Environment variables (use get() to allow import from webhook_handler)
 SAMBA_NOVA_API_KEY_NAME = os.environ.get("SAMBA_NOVA_API_KEY_NAME", "")
 GROQ_API_KEY_NAME = os.environ.get("GROQ_API_KEY_NAME", "")
+ANTHROPIC_API_KEY_NAME = os.environ.get("ANTHROPIC_API_KEY_NAME", "")
 CONVERSATION_TABLE_NAME = os.environ.get("CONVERSATION_TABLE_NAME", "")
 CHANNEL_ACCESS_TOKEN_NAME = os.environ.get("CHANNEL_ACCESS_TOKEN_NAME", "")
 
-AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # Options: "groq" or "sambanova"
+AI_SELECT = os.environ.get("AI_BACKEND", "groq")  # groq, sambanova, anthropic
+ANTHROPIC_MODEL = os.environ.get("ANTHROPIC_MODEL", "claude-haiku-5-5")
 SAMBANOVA_MODEL = os.environ.get("SAMBANOVA_MODEL", "DeepSeek-V3.2")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-20b")
 
@@ -67,6 +72,77 @@ def get_sambanova_client() -> openai.OpenAI:
 
 # Groq client
 groq_client = None
+anthropic_client = None
+
+
+def get_anthropic_client() -> "anthropic.Anthropic":
+    """Load Anthropic lazily and resolve the key through the existing runtime cache."""
+    global anthropic_client
+    if anthropic_client is None:
+        import anthropic
+
+        anthropic_client = anthropic.Anthropic(
+            api_key=line_messaging.get_secret(ANTHROPIC_API_KEY_NAME),
+            timeout=45.0,
+            max_retries=0,  # Stay inside the 60-second Lambda deadline.
+        )
+    return anthropic_client
+
+
+def get_anthropic_response(api_messages: list, tools: list) -> dict:
+    """Translate the shared prompt/schema to Messages API and route completed output.
+
+    The workflow accepts one search. Validate every call and combine multiple
+    searches in order instead of silently losing all but the first call.
+    """
+    response = get_anthropic_client().messages.create(
+        model=ANTHROPIC_MODEL,
+        system=api_messages[0]["content"],
+        messages=api_messages[1:],
+        max_tokens=4096,
+        output_config={"effort": "low"},
+        tools=[
+            {
+                "name": tool["function"]["name"],
+                "description": tool["function"]["description"],
+                "input_schema": tool["function"]["parameters"],
+            }
+            for tool in tools
+        ],
+        tool_choice={"type": "auto"},
+    )
+    if response.stop_reason not in {"end_turn", "tool_use"}:
+        raise ValueError("Anthropic response did not complete")
+
+    searches = []
+    texts = []
+    for block in response.content:
+        if block.type == "text":
+            texts.append(block.text)
+        elif block.type == "tool_use":
+            if block.name != "search_with_grok" or not isinstance(block.input, dict):
+                raise ValueError("Invalid Anthropic tool call")
+            query = block.input.get("query")
+            prompt = block.input.get("prompt", "")
+            if not isinstance(query, str) or not query.strip() or not isinstance(prompt, str):
+                raise ValueError("Invalid Anthropic search arguments")
+            searches.append((query.strip(), prompt))
+        elif block.type not in {"thinking", "redacted_thinking"}:
+            raise ValueError("Unsupported Anthropic content block")
+
+    if searches:
+        if response.stop_reason != "tool_use":
+            raise ValueError("Anthropic tool call did not complete")
+        return {
+            "hasToolCall": True,
+            "toolName": "search_with_grok",
+            "toolQuery": "\n".join(query for query, _ in searches),
+            "toolPrompt": "\n".join(prompt for _, prompt in searches if prompt),
+        }
+    if response.stop_reason != "end_turn" or not any(text.strip() for text in texts):
+        raise ValueError("Anthropic response contains no answer")
+    plain, _ = render_to_line("\n".join(texts))
+    return {"hasToolCall": False, "aiResponse": plain}
 
 
 def get_groq_client() -> openai.OpenAI:
@@ -165,7 +241,11 @@ def get_ai_response(messages: list) -> dict:
         Dict containing either tool call info or direct AI response
     """
     try:
-        backend_name = "SambaNova" if AI_SELECT == "sambanova" else "Groq"
+        backend_name = {"sambanova": "SambaNova", "groq": "Groq", "anthropic": "Anthropic"}.get(
+            AI_SELECT
+        )
+        if backend_name is None:
+            raise ValueError("Unsupported AI_BACKEND")
         logger.info(f"Calling {backend_name} API with {len(messages)} messages")
         api_messages = prepare_messages_for_api(messages)
 
@@ -190,6 +270,8 @@ def get_ai_response(messages: list) -> dict:
             }
         ]
 
+        if AI_SELECT == "anthropic":
+            return get_anthropic_response(api_messages, tools)
         if AI_SELECT == "sambanova":
             response = get_sambanova_client().chat.completions.create(  # type: ignore[call-overload]
                 model=SAMBANOVA_MODEL,
@@ -233,7 +315,7 @@ def get_ai_response(messages: list) -> dict:
         return {"hasToolCall": False, "aiResponse": plain}
 
     except Exception as e:
-        logger.error(f"Error calling SambaNova API: {e}")
+        logger.error("AI API request failed (%s)", type(e).__name__)
         return {
             "hasToolCall": False,
             "aiResponse": "あかん〜😅 あいちゃんの頭がちょっとこんがらがってもうたわ！もうちょっと時間置いてもう一回試してもらえる？",
