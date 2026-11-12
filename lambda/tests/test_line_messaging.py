@@ -76,8 +76,8 @@ class TestPushText(unittest.TestCase):
     def test_passes_the_retry_key_through(self, _config):
         api, client = self._patched_api()
         with (
-            patch("linebot.v3.messaging.ApiClient", return_value=client),
-            patch("linebot.v3.messaging.MessagingApi", return_value=api),
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
         ):
             line_messaging.push_text(
                 {"userId": "U1", "sourceType": "user"}, "hello", retry_key="key-1"
@@ -90,8 +90,8 @@ class TestPushText(unittest.TestCase):
     def test_omits_the_retry_key_when_absent(self, _config):
         api, client = self._patched_api()
         with (
-            patch("linebot.v3.messaging.ApiClient", return_value=client),
-            patch("linebot.v3.messaging.MessagingApi", return_value=api),
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
         ):
             line_messaging.push_text({"userId": "U1", "sourceType": "user"}, "hello")
 
@@ -101,8 +101,8 @@ class TestPushText(unittest.TestCase):
     def test_loading_animation_is_skipped_in_groups(self, _config):
         api, client = self._patched_api()
         with (
-            patch("linebot.v3.messaging.ApiClient", return_value=client),
-            patch("linebot.v3.messaging.MessagingApi", return_value=api),
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
         ):
             line_messaging.push_text(
                 {"userId": "U1", "sourceType": "group", "sourceId": "G1"},
