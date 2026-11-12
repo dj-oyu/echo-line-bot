@@ -18,7 +18,6 @@ lambda/
 ├── grok_processor.py        # xAI Grok検索処理
 ├── response_sender.py       # 失敗通知（Catch 先）
 ├── line_messaging.py        # LINE送信・履歴永続化の共通処理
-├── requirements.txt         # Lambda Layer用依存関係
 ├── layer-dist/              # ビルド済みLayer（gitignore）
 └── tests/                   # Pytestテスト
 ```
