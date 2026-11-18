@@ -127,6 +127,13 @@ def lambda_handler(event: dict, _context) -> dict:
     if grok_body:
         conversation_context = event.get("conversationContext")
         if conversation_context:
-            line_messaging.append_and_save(event["userId"], conversation_context, grok_body)
+            try:
+                line_messaging.append_and_save(
+                    event["userId"], conversation_context, grok_body
+                )
+            except Exception:
+                logger.exception(
+                    "The Grok answer was delivered, but conversation history could not be saved"
+                )
 
     return event

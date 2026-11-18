@@ -19,6 +19,7 @@ which not every caller touches.
 import json
 import logging
 import os
+import uuid
 from datetime import datetime, timezone
 from typing import Any, cast
 
@@ -37,6 +38,8 @@ logger = logging.getLogger()
 # Keeping the whole history would grow the prompt without bound; the README
 # has always claimed a 20-message cap, but only response_sender enforced it.
 MAX_HISTORY_MESSAGES = 20
+MAX_TEXT_MESSAGE_LENGTH = 5000
+MAX_MESSAGES_PER_REQUEST = 5
 
 _secretsmanager = None
 _conversation_table = None
@@ -124,13 +127,44 @@ def _configuration():
     return _line_configuration
 
 
+def split_text(text: str, max_length: int = MAX_TEXT_MESSAGE_LENGTH) -> list[str]:
+    """Split text without losing content, preferring readable boundaries."""
+    if max_length <= 0:
+        raise ValueError("max_length must be positive")
+    if len(text) <= max_length:
+        return [text]
+
+    chunks: list[str] = []
+    remaining = text
+    while len(remaining) > max_length:
+        window = remaining[:max_length]
+        break_at = 0
+        minimum_boundary = max_length // 2
+        for boundary in ("\n\n", "\n", "。", "！", "？", ". ", " "):
+            position = window.rfind(boundary)
+            if position >= minimum_boundary:
+                break_at = max(break_at, position + len(boundary))
+
+        chunks.append(remaining[: break_at or max_length])
+        remaining = remaining[break_at or max_length :]
+
+    chunks.append(remaining)
+    return chunks
+
+
+def _batch_retry_key(retry_key: str | None, batch_index: int) -> str | None:
+    if retry_key is None or batch_index == 0:
+        return retry_key
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{retry_key}/push-batch/{batch_index}"))
+
+
 def push_text(
     event: dict,
     text: str,
     retry_key: str | None = None,
     show_loading: bool = False,
 ) -> None:
-    """Push a text message to the event's source.
+    """Push text to the event's source, respecting LINE message limits.
 
     Args:
         event: Handler event carrying userId, sourceType, sourceId, quote_token
@@ -160,19 +194,44 @@ def push_text(
             except Exception as e:
                 logger.warning("Failed to show loading animation: %s", e)
 
-        quote_token = event.get("quote_token")
-        message = TextMessage(
-            text=text,
-            quoteToken=quote_token if quote_token and source_type in ("group", "room") else None,
+        quote_token = (
+            event.get("quote_token") if source_type in ("group", "room") else None
         )
-        kwargs: dict[str, Any] = {"push_message_request": PushMessageRequest(
-            to=target_id, messages=[message]
-        )}
-        if retry_key:
-            kwargs["x_line_retry_key"] = retry_key
-        line_bot_api.push_message_with_http_info(**kwargs)
+        chunks = split_text(text)
+        for batch_index, start in enumerate(
+            range(0, len(chunks), MAX_MESSAGES_PER_REQUEST)
+        ):
+            batch_start = start
+            messages = [
+                TextMessage.from_dict(
+                    {
+                        "type": "text",
+                        "text": chunk,
+                        "quoteToken": (
+                            quote_token
+                            if chunk_index == 0 and batch_start == 0
+                            else None
+                        ),
+                    }
+                )
+                for chunk_index, chunk in enumerate(
+                    chunks[start : start + MAX_MESSAGES_PER_REQUEST]
+                )
+            ]
+            kwargs: dict[str, Any] = {
+                "push_message_request": PushMessageRequest.from_dict(
+                    {
+                        "to": target_id,
+                        "messages": [message.to_dict() for message in messages],
+                    }
+                )
+            }
+            batch_retry_key = _batch_retry_key(retry_key, batch_index)
+            if batch_retry_key:
+                kwargs["x_line_retry_key"] = batch_retry_key
+            line_bot_api.push_message_with_http_info(**kwargs)
 
-    logger.info("Pushed message to %s", target_id)
+    logger.info("Pushed %d message part(s) to %s", len(chunks), target_id)
 
 
 def append_and_save(user_id: str, conversation_context: dict, content: str) -> None:
