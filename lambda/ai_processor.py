@@ -217,7 +217,14 @@ def lambda_handler(event: dict, _context) -> dict:
 
         # Direct answer: this stage owns delivery, so the workflow ends here.
         line_messaging.push_text(event, event["aiResponse"], retry_key=retry_key)
-        line_messaging.append_and_save(user_id, conversation_context, event["aiResponse"])
+        try:
+            line_messaging.append_and_save(
+                user_id, conversation_context, event["aiResponse"]
+            )
+        except Exception:
+            logger.exception(
+                "The direct answer was delivered, but conversation history could not be saved"
+            )
         return event
 
     except Exception as e:

@@ -73,7 +73,7 @@ class TestPushText(unittest.TestCase):
         return api, client
 
     @patch("line_messaging._configuration")
-    def test_passes_the_retry_key_through(self, _config):
+    def test_passes_the_retry_key_through(self, mock_config):
         api, client = self._patched_api()
         with (
             patch("line_messaging.ApiClient", return_value=client),
@@ -85,9 +85,10 @@ class TestPushText(unittest.TestCase):
 
         kwargs = api.push_message_with_http_info.call_args.kwargs
         self.assertEqual(kwargs["x_line_retry_key"], "key-1")
+        mock_config.assert_called_once()
 
     @patch("line_messaging._configuration")
-    def test_omits_the_retry_key_when_absent(self, _config):
+    def test_omits_the_retry_key_when_absent(self, mock_config):
         api, client = self._patched_api()
         with (
             patch("line_messaging.ApiClient", return_value=client),
@@ -96,9 +97,10 @@ class TestPushText(unittest.TestCase):
             line_messaging.push_text({"userId": "U1", "sourceType": "user"}, "hello")
 
         self.assertNotIn("x_line_retry_key", api.push_message_with_http_info.call_args.kwargs)
+        mock_config.assert_called_once()
 
     @patch("line_messaging._configuration")
-    def test_loading_animation_is_skipped_in_groups(self, _config):
+    def test_loading_animation_is_skipped_in_groups(self, mock_config):
         api, client = self._patched_api()
         with (
             patch("line_messaging.ApiClient", return_value=client),
@@ -111,6 +113,95 @@ class TestPushText(unittest.TestCase):
             )
 
         api.show_loading_animation.assert_not_called()
+        mock_config.assert_called_once()
+
+    def test_split_text_prefers_a_recent_boundary_without_losing_content(self):
+        text = "あ" * 4900 + "\n\n" + "い" * 200
+
+        chunks = line_messaging.split_text(text)
+
+        self.assertEqual("".join(chunks), text)
+        self.assertTrue(all(len(chunk) <= 5000 for chunk in chunks))
+        self.assertEqual(chunks[0], "あ" * 4900 + "\n\n")
+
+    @patch("line_messaging._configuration")
+    def test_long_text_is_sent_as_multiple_messages_in_one_request(self, mock_config):
+        api, client = self._patched_api()
+        text = "a" * 10_001
+
+        with (
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
+        ):
+            line_messaging.push_text(
+                {"userId": "U1", "sourceType": "user"},
+                text,
+                retry_key="key-1",
+            )
+
+        api.push_message_with_http_info.assert_called_once()
+        messages = (
+            api.push_message_with_http_info.call_args.kwargs["push_message_request"].messages
+        )
+        self.assertEqual([len(message.text) for message in messages], [5000, 5000, 1])
+        self.assertEqual("".join(message.text for message in messages), text)
+        mock_config.assert_called_once()
+
+    @patch("line_messaging._configuration")
+    def test_more_than_five_chunks_use_stable_distinct_retry_keys(self, mock_config):
+        api, client = self._patched_api()
+
+        with (
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
+        ):
+            line_messaging.push_text(
+                {"userId": "U1", "sourceType": "user"},
+                "x" * 25_001,
+                retry_key="exec-1",
+            )
+            line_messaging.push_text(
+                {"userId": "U1", "sourceType": "user"},
+                "x" * 25_001,
+                retry_key="exec-1",
+            )
+
+        self.assertEqual(api.push_message_with_http_info.call_count, 4)
+        first_run = [
+            call.kwargs["x_line_retry_key"]
+            for call in api.push_message_with_http_info.call_args_list[:2]
+        ]
+        second_run = [
+            call.kwargs["x_line_retry_key"]
+            for call in api.push_message_with_http_info.call_args_list[2:]
+        ]
+        self.assertEqual(first_run, second_run)
+        self.assertEqual(len(set(first_run)), 2)
+        self.assertEqual(mock_config.call_count, 2)
+
+    @patch("line_messaging._configuration")
+    def test_quote_is_attached_only_to_the_first_chunk(self, mock_config):
+        api, client = self._patched_api()
+        with (
+            patch("line_messaging.ApiClient", return_value=client),
+            patch("line_messaging.MessagingApi", return_value=api),
+        ):
+            line_messaging.push_text(
+                {
+                    "userId": "U1",
+                    "sourceType": "group",
+                    "sourceId": "G1",
+                    "quote_token": "quote-1",
+                },
+                "x" * 5001,
+            )
+
+        messages = (
+            api.push_message_with_http_info.call_args.kwargs["push_message_request"].messages
+        )
+        self.assertEqual(messages[0].quote_token, "quote-1")
+        self.assertIsNone(messages[1].quote_token)
+        mock_config.assert_called_once()
 
 
 if __name__ == "__main__":

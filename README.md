@@ -46,10 +46,12 @@ LINE Platform → API Gateway → Webhook Lambda → Step Functions
   - `WebhookHandler`: 署名検証、`/forget` 処理、Step Functions起動（10秒タイムアウト）
   - `AiProcessor`: 応答生成とツール呼び出し判定。直接応答ならこの場で送信して終了（60秒タイムアウト）
   - `GrokProcessor`: xAI Grok検索。回答を送信し履歴に保存して終了（180秒タイムアウト）
-  - `ResponseSender`: Step Functions の Catch 専用。応答前に落ちた場合の通知のみ（10秒タイムアウト）
+  - `ResponseSender`: Step Functions の Catch 専用。応答前に落ちた場合の通知のみ（30秒タイムアウト）
 
   メッセージの送信は、それを生成した段が行う。専用の送信段を挟むと
-  1リクエストごとに約3秒のコールドスタートを払うため。
+  1リクエストごとに約3秒のコールドスタートを払うため。長文はLINEの
+  5,000文字制限に合わせて分割し、1回のPush APIで最大5件まで送信する。
+  それ以上の回答も順次送信し、バッチごとに安定したリトライキーを使う。
 - **Lambda Layer**: 事前ビルド済み共通依存関係（line-bot-sdk, openai, boto3, xai-sdk, pytz）
 - **Step Functions**: 条件分岐付きAI処理ワークフローの管理
 - **API Gateway**: LINE webhook用REST APIエンドポイント

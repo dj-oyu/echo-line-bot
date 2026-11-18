@@ -30,9 +30,10 @@ class TestGrokProcessor(unittest.TestCase):
     @patch("line_messaging.append_and_save")
     @patch("line_messaging.push_text")
     @patch("grok_processor.call_grok_api", return_value=("答え\n\n出典: ...", "答え"))
-    def test_sends_the_answer_and_records_the_body(self, _api, mock_push, mock_save):
+    def test_sends_the_answer_and_records_the_body(self, mock_api, mock_push, mock_save):
         result = grok_processor.lambda_handler(self._event(), None)
 
+        mock_api.assert_called_once()
         self.assertEqual(mock_push.call_args.args[1], "答え\n\n出典: ...")
         self.assertEqual(mock_push.call_args.kwargs["retry_key"], "exec-1")
         # the citation footer is kept out of the history
@@ -42,11 +43,26 @@ class TestGrokProcessor(unittest.TestCase):
     @patch("line_messaging.append_and_save")
     @patch("line_messaging.push_text")
     @patch("grok_processor.call_grok_api", return_value=("ごめんやで～、見つけられへんかった", ""))
-    def test_a_failed_search_is_sent_but_not_recorded(self, _api, mock_push, mock_save):
+    def test_a_failed_search_is_sent_but_not_recorded(
+        self, mock_api, mock_push, mock_save
+    ):
         grok_processor.lambda_handler(self._event(), None)
 
+        mock_api.assert_called_once()
         mock_push.assert_called_once()
         mock_save.assert_not_called()
+
+    @patch("line_messaging.append_and_save", side_effect=Exception("DynamoDB is down"))
+    @patch("line_messaging.push_text")
+    @patch("grok_processor.call_grok_api", return_value=("答え", "答え"))
+    def test_a_history_failure_does_not_replace_a_delivered_answer(
+        self, mock_api, mock_push, mock_save
+    ):
+        grok_processor.lambda_handler(self._event(), None)
+
+        mock_api.assert_called_once()
+        mock_push.assert_called_once()
+        mock_save.assert_called_once()
 
     def test_a_missing_query_raises(self):
         """Raising routes the execution to the Catch, which notifies the user."""
