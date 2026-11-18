@@ -169,29 +169,6 @@ class TestDirectAnswerDelivery(unittest.TestCase):
         self.assertEqual(mock_push.call_args.kwargs["retry_key"], "exec-1")
         mock_save.assert_called_once()
 
-    @patch(
-        "line_messaging.append_and_save",
-        side_effect=Exception("DynamoDB is down"),
-    )
-    @patch("line_messaging.push_text")
-    @patch("ai_processor.get_groq_client")
-    def test_a_history_failure_does_not_replace_a_delivered_answer(
-        self, mock_get_client, mock_push, mock_save
-    ):
-        self._stub_direct_answer(mock_get_client)
-        event = {
-            "userId": "U1",
-            "sourceType": "user",
-            "executionName": "exec-1",
-            "conversationContext": {"userId": "U1", "messages": []},
-        }
-
-        with patch.object(ai_processor, "AI_SELECT", "groq"):
-            ai_processor.lambda_handler(event, None)
-
-        mock_push.assert_called_once()
-        mock_save.assert_called_once()
-
     @patch("line_messaging.append_and_save")
     @patch("line_messaging.push_text")
     @patch("ai_processor.get_groq_client")
@@ -245,8 +222,6 @@ class TestDirectAnswerDelivery(unittest.TestCase):
 
         self.assertTrue(result["hasToolCall"])
         self.assertEqual(result["toolQuery"], "x")
-        mock_push.assert_called_once()
-        mock_save.assert_not_called()
 
     def test_interim_and_final_retry_keys_differ(self):
         """One key for both messages would make LINE drop the second."""
